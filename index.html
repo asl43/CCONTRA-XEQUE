@@ -650,6 +650,48 @@ input[type="range"]::-moz-range-thumb {
   .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
   .historico-container { display: none; }
 }
+/* Adicionar após as variáveis :root existentes */
+
+[data-theme="dark"] {
+  --primary: #10b981;
+  --primary-light: #34d399;
+  --primary-dark: #059669;
+  --accent: #fbbf24;
+  --accent-hover: #f59e0b;
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface-alt: #334155;
+  --text: #f1f5f9;
+  --text-muted: #94a3b8;
+  --border: #475569;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+}
+
+.theme-toggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.5rem;
+  transition: all 0.3s ease;
+  z-index: 1000;
+  box-shadow: var(--shadow);
+}
+
+.theme-toggle:hover {
+  transform: scale(1.1);
+  box-shadow: var(--shadow-lg);
+}
 </style>
 </head>
 
@@ -660,7 +702,7 @@ input[type="range"]::-moz-range-thumb {
     <p class="subtitle">Análise Inteligente com Sincronização Google Sheets</p>
     <div class="status-sync" id="syncStatus">⏳ Aguardando dados...</div>
   </div>
-
+<button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">🌙</button>
   <div class="historico-container" id="historicoContainer">
     <div class="card-header">
       <span class="card-icon">📊</span>
@@ -813,6 +855,7 @@ input[type="range"]::-moz-range-thumb {
         <button class="tab active" onclick="switchResultTab('detalhes')">📋 Detalhes</button>
         <button class="tab" onclick="switchResultTab('comparativo')">🎯 Comparativo</button>
         <button class="tab" onclick="switchResultTab('simulacao')">🔮 Simulação</button>
+        <button class="tab" onclick="switchResultTab('graficos')">📊 Gráficos</button>
       </div>
       <div id="detalhes-result-tab" class="tab-content active"><div id="detailsContent"></div></div>
       <div id="comparativo-result-tab" class="tab-content"><div id="comparisonContent"></div></div>
@@ -838,6 +881,24 @@ input[type="range"]::-moz-range-thumb {
     </div>
   </div>
 </div>
+<div id="graficos-result-tab" class="tab-content">
+  <h3 style="margin-bottom: 20px; color: var(--primary);">📊 Análises Visuais</h3>
+  
+  <div class="chart-container" style="margin-bottom: 30px;">
+    <h4 style="margin-bottom: 15px;">Descontos por Categoria</h4>
+    <canvas id="graficoCategoriasDescontos"></canvas>
+  </div>
+  
+  <div class="chart-container" style="margin-bottom: 30px;">
+    <h4 style="margin-bottom: 15px;">Composição do Bruto</h4>
+    <canvas id="graficoComposicaoBruto"></canvas>
+  </div>
+  
+  <div class="chart-container">
+    <h4 style="margin-bottom: 15px;">Comparativo: Entrada vs Saída</h4>
+    <canvas id="graficoEntradaSaida"></canvas>
+  </div>
+</div>
 
 <script>
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby3VFHiTu4oztFIM18Tve-RGFOMDef7bOoddFJRVMTYN8YhElpaZEVJusf-t2_Vba91yg/exec';
@@ -845,6 +906,164 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby3VFHiTu4oztFI
 let chartInstance = null;
 let chartEvolucaoInstance = null;
 let dados = { mesAno: '', bruto: 0, liquido: 0, totalDescontos: 0, ganhos: [], descontos: [], emprestimos: [], itensExtrados: false };
+let chartCategoriasInstance = null;
+let chartComposicaoInstance = null;
+let chartEntradaSaidaInstance = null;
+
+function renderGraficosAdicionais() {
+  renderGraficoCategoriasDescontos();
+  renderGraficoComposicaoBruto();
+  renderGraficoEntradaSaida();
+}
+
+function renderGraficoCategoriasDescontos() {
+  const totalObrig = (dados.descontosObrigatorios || []).reduce((sum, i) => sum + i.valor, 0);
+  const totalEmp = (dados.emprestimos || []).reduce((sum, i) => sum + i.valor, 0);
+  const totalBenef = (dados.beneficios || []).reduce((sum, i) => sum + i.valor, 0);
+  const totalOutros = dados.totalDescontos - totalObrig - totalEmp - totalBenef;
+  
+  const ctx = document.getElementById('graficoCategoriasDescontos').getContext('2d');
+  if (chartCategoriasInstance) chartCategoriasInstance.destroy();
+  
+  chartCategoriasInstance = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: ['Obrigatórios', 'Empréstimos', 'Benefícios', 'Outros'],
+      datasets: [{
+        data: [totalObrig, totalEmp, totalBenef, totalOutros],
+        backgroundColor: [
+          'rgba(239, 68, 68, 0.8)',
+          'rgba(245, 158, 11, 0.8)',
+          'rgba(59, 130, 246, 0.8)',
+          'rgba(107, 114, 128, 0.8)'
+        ],
+        borderWidth: 2,
+        borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right' },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const value = context.parsed;
+              const total = context.dataset.data.reduce((a, b) => a + b, 0);
+              const percentage = ((value / total) * 100).toFixed(1);
+              return `${context.label}: R$ ${formatMoney(value)} (${percentage}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderGraficoComposicaoBruto() {
+  const ganhosPorItem = (dados.ganhos || []).map(g => ({ label: g.descricao, valor: g.valor }));
+  
+  const ctx = document.getElementById('graficoComposicaoBruto').getContext('2d');
+  if (chartComposicaoInstance) chartComposicaoInstance.destroy();
+  
+  chartComposicaoInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ganhosPorItem.map(g => g.label),
+      datasets: [{
+        label: 'Valores',
+        data: ganhosPorItem.map(g => g.valor),
+        backgroundColor: 'rgba(16, 185, 129, 0.8)',
+        borderColor: 'rgba(16, 185, 129, 1)',
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: 'y',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return 'R$ ' + formatMoney(context.parsed.x);
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            callback: function(value) {
+              return 'R$ ' + formatMoney(value);
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderGraficoEntradaSaida() {
+  const ctx = document.getElementById('graficoEntradaSaida').getContext('2d');
+  if (chartEntradaSaidaInstance) chartEntradaSaidaInstance.destroy();
+  
+  chartEntradaSaidaInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Financeiro'],
+      datasets: [
+        {
+          label: 'Bruto',
+          data: [dados.bruto],
+          backgroundColor: 'rgba(16, 185, 129, 0.8)',
+          borderColor: 'rgba(16, 185, 129, 1)',
+          borderWidth: 2
+        },
+        {
+          label: 'Descontos',
+          data: [dados.totalDescontos],
+          backgroundColor: 'rgba(239, 68, 68, 0.8)',
+          borderColor: 'rgba(239, 68, 68, 1)',
+          borderWidth: 2
+        },
+        {
+          label: 'Líquido',
+          data: [dados.liquido],
+          backgroundColor: 'rgba(232, 185, 49, 0.8)',
+          borderColor: 'rgba(232, 185, 49, 1)',
+          borderWidth: 2
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return context.dataset.label + ': R$ ' + formatMoney(context.parsed.y);
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: function(value) {
+              return 'R$ ' + formatMoney(value);
+            }
+          }
+        }
+      }
+    }
+  });
+}
 
 // ============================================
 // FUNÇÕES DE SINCRONIZAÇÃO
@@ -1332,7 +1551,7 @@ function extrairDados(txt) {
   }
   
   if (totalBruto === 0) {
-    extrairItensIndividuais(txt);
+  extrairItensIndividuais(txt);
   } else {
     dados.bruto = totalBruto;
     dados.totalDescontos = totalDescontos;
@@ -1353,6 +1572,8 @@ function extrairItensIndividuais(txt) {
   dados.ganhos = []; 
   dados.descontos = []; 
   dados.emprestimos = [];
+  dados.descontosObrigatorios = [];
+  dados.beneficios = [];
   
   const linhas = txt.split('\n');
   
@@ -1365,21 +1586,37 @@ function extrairItensIndividuais(txt) {
       
       if (valor > 0 && descricao.length > 3) {
         const matchParcelas = linha.match(/(\d{3})\|(\d{3})/);
-        const ehEmprestimo = /BANCO|EMP|CART|CONSIG|EMPREST/i.test(linha);
-        const ehDesconto = /IMPOSTO|PREV|INSS|DESCONTO/i.test(linha);
+        const linhaUpper = linha.toUpperCase();
+        
+        // Categorização de Descontos
+        const ehEmprestimo = /BANCO|EMP\s|CART|CONSIG|EMPREST|FINANC/i.test(linha);
+        const ehObrigatorio = /IMPOSTO|PREV|INSS|IRRF|IR\s|FGTS|CONTRIBU|SINDIC/i.test(linha);
+        const ehBeneficio = /SAUDE|PLANO|DENTAL|SEGURO|VIDA|VALE|ASSIST|FARMAC/i.test(linha);
         
         if (ehEmprestimo && matchParcelas) {
-          dados.emprestimos.push({ 
+          const item = { 
             descricao, 
             valor, 
             parcelaAtual: parseInt(matchParcelas[1]), 
-            totalParcelas: parseInt(matchParcelas[2]) 
-          });
-          dados.descontos.push({ descricao, valor });
-        } else if (ehDesconto || ehEmprestimo) {
-          dados.descontos.push({ descricao, valor });
-        } else if (/SOLDO|SALARIO|GRAT|EXTRA|BONUS|ETAPA|VENCIMENTO/i.test(linha)) {
+            totalParcelas: parseInt(matchParcelas[2]),
+            categoria: 'emprestimo'
+          };
+          dados.emprestimos.push(item);
+          dados.descontos.push(item);
+        } else if (ehObrigatorio) {
+          const item = { descricao, valor, categoria: 'obrigatorio' };
+          dados.descontosObrigatorios.push(item);
+          dados.descontos.push(item);
+        } else if (ehBeneficio) {
+          const item = { descricao, valor, categoria: 'beneficio' };
+          dados.beneficios.push(item);
+          dados.descontos.push(item);
+        } else if (/SOLDO|SALARIO|GRAT|EXTRA|BONUS|ETAPA|VENCIMENTO|ADICIONAL/i.test(linha)) {
           dados.ganhos.push({ descricao, valor });
+        } else if (/DESC|DED/i.test(linha)) {
+          // Descontos genéricos
+          const item = { descricao, valor, categoria: 'outro' };
+          dados.descontos.push(item);
         }
       }
     }
@@ -1444,6 +1681,7 @@ function analisar() {
 
   // Salva no histórico e sincroniza
   salvarNoHistorico();
+  renderGraficosAdicionais();
   sincronizarComSheets();
 
   // Scroll suave até os resultados
@@ -1530,30 +1768,57 @@ function renderChart(bruto, descontos, liquido) {
 
 function renderDetails() {
   let html = '<h3 style="margin-bottom: 15px; color: var(--primary);">📋 Detalhamento dos Itens</h3>';
+  
+  // Ganhos
   if (dados.ganhos && dados.ganhos.length > 0) {
-    html += '<h4 style="margin: 20px 0 10px; color: var(--success);">Ganhos</h4><table class="breakdown-table"><thead><tr><th>Descrição</th><th class="amount">Valor</th></tr></thead><tbody>';
+    html += '<h4 style="margin: 20px 0 10px; color: var(--success);">💰 Ganhos</h4>';
+    html += '<table class="breakdown-table"><thead><tr><th>Descrição</th><th class="amount">Valor</th></tr></thead><tbody>';
     dados.ganhos.forEach(item => {
       html += `<tr><td>${item.descricao}</td><td class="amount">R$ ${formatMoney(item.valor)}</td></tr>`;
     });
+    const totalGanhos = dados.ganhos.reduce((sum, i) => sum + i.valor, 0);
+    html += `<tr style="background: var(--surface-alt); font-weight: 700;"><td>TOTAL</td><td class="amount">R$ ${formatMoney(totalGanhos)}</td></tr>`;
     html += '</tbody></table>';
   }
-  if (dados.descontos && dados.descontos.length > 0) {
-    html += '<h4 style="margin: 20px 0 10px; color: var(--danger);">Descontos</h4><table class="breakdown-table"><thead><tr><th>Descrição</th><th class="amount">Valor</th></tr></thead><tbody>';
-    dados.descontos.forEach(item => {
+  
+  // Descontos Obrigatórios
+  if (dados.descontosObrigatorios && dados.descontosObrigatorios.length > 0) {
+    html += '<h4 style="margin: 20px 0 10px; color: var(--danger);">⚖️ Descontos Obrigatórios</h4>';
+    html += '<table class="breakdown-table"><thead><tr><th>Descrição</th><th class="amount">Valor</th></tr></thead><tbody>';
+    dados.descontosObrigatorios.forEach(item => {
       html += `<tr><td>${item.descricao}</td><td class="amount">R$ ${formatMoney(item.valor)}</td></tr>`;
     });
+    const totalObrig = dados.descontosObrigatorios.reduce((sum, i) => sum + i.valor, 0);
+    html += `<tr style="background: var(--surface-alt); font-weight: 700;"><td>SUBTOTAL</td><td class="amount">R$ ${formatMoney(totalObrig)}</td></tr>`;
     html += '</tbody></table>';
   }
+  
+  // Empréstimos
   if (dados.emprestimos && dados.emprestimos.length > 0) {
-    html += '<h4 style="margin: 20px 0 10px; color: var(--warning);">Empréstimos/Consig.</h4><table class="breakdown-table"><thead><tr><th>Descrição</th><th class="amount">Valor</th><th style="text-align:center;">Parcela</th></tr></thead><tbody>';
+    html += '<h4 style="margin: 20px 0 10px; color: var(--warning);">🏦 Empréstimos/Consignados</h4>';
+    html += '<table class="breakdown-table"><thead><tr><th>Descrição</th><th class="amount">Valor</th><th style="text-align:center;">Parcela</th></tr></thead><tbody>';
     dados.emprestimos.forEach(item => {
       html += `<tr><td>${item.descricao}</td><td class="amount">R$ ${formatMoney(item.valor)}</td><td style="text-align:center;">${item.parcelaAtual}/${item.totalParcelas}</td></tr>`;
     });
+    const totalEmp = dados.emprestimos.reduce((sum, i) => sum + i.valor, 0);
+    html += `<tr style="background: var(--surface-alt); font-weight: 700;"><td>SUBTOTAL</td><td class="amount" colspan="2">R$ ${formatMoney(totalEmp)}</td></tr>`;
     html += '</tbody></table>';
   }
+  
+  // Benefícios
+  if (dados.beneficios && dados.beneficios.length > 0) {
+    html += '<h4 style="margin: 20px 0 10px; color: var(--info);">🏥 Benefícios</h4>';
+    html += '<table class="breakdown-table"><thead><tr><th>Descrição</th><th class="amount">Valor</th></tr></thead><tbody>';
+    dados.beneficios.forEach(item => {
+      html += `<tr><td>${item.descricao}</td><td class="amount">R$ ${formatMoney(item.valor)}</td></tr>`;
+    });
+    const totalBenef = dados.beneficios.reduce((sum, i) => sum + i.valor, 0);
+    html += `<tr style="background: var(--surface-alt); font-weight: 700;"><td>SUBTOTAL</td><td class="amount">R$ ${formatMoney(totalBenef)}</td></tr>`;
+    html += '</tbody></table>';
+  }
+  
   document.getElementById('detailsContent').innerHTML = html || '<p>Nenhum item detalhado encontrado.</p>';
 }
-
 function renderComparison(bruto, descontos, liquido, percDescontos) {
   const historico = JSON.parse(localStorage.getItem('historicoContracheques') || '[]');
   const anteriores = historico.filter(h => h.mesAno !== dados.mesAno);
@@ -1680,5 +1945,26 @@ function resetar() {
   document.getElementById('resultsContainer').classList.remove('active');
   updateSyncStatus('', '⏳ Aguardando dados...');
 }
+// TEMA CLARO/ESCURO
+function toggleTheme() {
+  const html = document.documentElement;
+  const currentTheme = html.getAttribute('data-theme');
+  const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  const icon = document.getElementById('themeToggle');
+  
+  html.setAttribute('data-theme', newTheme);
+  icon.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+  localStorage.setItem('theme', newTheme);
+}
+
+// Carregar tema salvo
+function loadTheme() {
+  const savedTheme = localStorage.getItem('theme') || 'light';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+  document.getElementById('themeToggle').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+}
+
+// Executar ao carregar a página
+document.addEventListener('DOMContentLoaded', loadTheme);
 </script>
 </html>
