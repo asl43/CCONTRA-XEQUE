@@ -31,7 +31,6 @@
   --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
-/* Adicionar após as variáveis :root existentes */
 
 [data-theme="dark"] {
   --primary: #10b981;
@@ -253,6 +252,7 @@ select {
   font-weight: 500;
   transition: all 0.2s ease;
   background: var(--surface);
+  color: var(--text);
 }
 
 input[type="month"] { padding: 14px; }
@@ -501,7 +501,6 @@ textarea {
 .breakdown-table td { padding: 12px; border-bottom: 1px solid var(--border); }
 .breakdown-table tr:hover { background: var(--surface-alt); }
 .breakdown-table .amount { text-align: right; font-weight: 600; font-size: 1.05rem; }
-.breakdown-table .percentage { text-align: center; font-size: 0.9rem; color: var(--text-muted); }
 
 .tabs {
   display: flex;
@@ -624,6 +623,17 @@ input[type="range"]::-moz-range-thumb {
   align-items: center;
   gap: 12px;
   font-weight: 500;
+  position: fixed;
+  top: 90px;
+  right: 20px;
+  z-index: 9999;
+  min-width: 300px;
+  animation: slideInRight 0.3s ease;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(400px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
 }
 
 .alert-success { background: #d1fae5; color: #065f46; border-left: 4px solid var(--success); }
@@ -698,6 +708,7 @@ input[type="range"]::-moz-range-thumb {
 <body>
 <div class="container">
   <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">🌙</button>
+  
   <div class="header">
     <h1>💰 ContraCheque AI</h1>
     <p class="subtitle">Análise Inteligente com Sincronização Google Sheets</p>
@@ -728,7 +739,11 @@ input[type="range"]::-moz-range-thumb {
         </select>
       </div>
 
-      <div style="display: flex; align-items: flex-end; gap: 10px;">
+      <div style="display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap;">
+        <button class="btn btn-primary" onclick="carregarDadosDoSheets()" style="padding: 12px 20px; font-size: 0.95rem;">
+          <span>☁️</span>
+          <span>Importar</span>
+        </button>
         <button class="btn btn-info" onclick="exibirGraficoEvolucao()" style="padding: 12px 20px; font-size: 0.95rem;">
           <span>📈</span>
           <span>Evolução</span>
@@ -741,6 +756,7 @@ input[type="range"]::-moz-range-thumb {
     </div>
 
     <div id="historicoTableContainer"></div>
+    
     <div id="graficoEvolucaoContainer" style="display: none; margin-top: 30px;">
       <h3 style="margin-bottom: 20px; color: var(--primary);">📈 Evolução dos Contracheques</h3>
       <div class="chart-container">
@@ -858,12 +874,38 @@ input[type="range"]::-moz-range-thumb {
         <button class="tab" onclick="switchResultTab('simulacao')">🔮 Simulação</button>
         <button class="tab" onclick="switchResultTab('graficos')">📊 Gráficos</button>
       </div>
-      <div id="detalhes-result-tab" class="tab-content active"><div id="detailsContent"></div></div>
-      <div id="comparativo-result-tab" class="tab-content"><div id="comparisonContent"></div></div>
+      
+      <div id="detalhes-result-tab" class="tab-content active">
+        <div id="detailsContent"></div>
+      </div>
+      
+      <div id="comparativo-result-tab" class="tab-content">
+        <div id="comparisonContent"></div>
+      </div>
+      
       <div id="simulacao-result-tab" class="tab-content">
         <h3 style="margin-bottom: 20px; color: var(--primary);">🔮 Simulador de Cenários</h3>
         <div class="simulation-controls" id="simulationControls"></div>
         <div id="simulationResults"></div>
+      </div>
+      
+      <div id="graficos-result-tab" class="tab-content">
+        <h3 style="margin-bottom: 20px; color: var(--primary);">📊 Análises Visuais</h3>
+        
+        <div class="chart-container" style="margin-bottom: 30px;">
+          <h4 style="margin-bottom: 15px;">Descontos por Categoria</h4>
+          <canvas id="graficoCategoriasDescontos"></canvas>
+        </div>
+        
+        <div class="chart-container" style="margin-bottom: 30px;">
+          <h4 style="margin-bottom: 15px;">Composição do Bruto</h4>
+          <canvas id="graficoComposicaoBruto"></canvas>
+        </div>
+        
+        <div class="chart-container">
+          <h4 style="margin-bottom: 15px;">Comparativo: Entrada vs Saída</h4>
+          <canvas id="graficoEntradaSaida"></canvas>
+        </div>
       </div>
     </div>
 
@@ -876,39 +918,965 @@ input[type="range"]::-moz-range-thumb {
     </div>
 
     <div style="margin-top: 30px; text-align: center;">
-      <button class="btn btn-primary" onclick="exportarRelatorio()"><span>📄</span><span>Exportar PDF</span></button>
-      <button class="btn btn-accent" onclick="window.print()" style="margin-left: 10px;"><span>🖨️</span><span>Imprimir</span></button>
-      <button class="btn btn-info" onclick="resetar()" style="margin-left: 10px;"><span>🔄</span><span>Nova Análise</span></button>
+      <button class="btn btn-primary" onclick="exportarRelatorio()">
+        <span>📄</span><span>Exportar PDF</span>
+      </button>
+      <button class="btn btn-accent" onclick="window.print()" style="margin-left: 10px;">
+        <span>🖨️</span><span>Imprimir</span>
+      </button>
+      <button class="btn btn-info" onclick="resetar()" style="margin-left: 10px;">
+        <span>🔄</span><span>Nova Análise</span>
+      </button>
     </div>
   </div>
 </div>
-<div id="graficos-result-tab" class="tab-content">
-  <h3 style="margin-bottom: 20px; color: var(--primary);">📊 Análises Visuais</h3>
-  
-  <div class="chart-container" style="margin-bottom: 30px;">
-    <h4 style="margin-bottom: 15px;">Descontos por Categoria</h4>
-    <canvas id="graficoCategoriasDescontos"></canvas>
-  </div>
-  
-  <div class="chart-container" style="margin-bottom: 30px;">
-    <h4 style="margin-bottom: 15px;">Composição do Bruto</h4>
-    <canvas id="graficoComposicaoBruto"></canvas>
-  </div>
-  
-  <div class="chart-container">
-    <h4 style="margin-bottom: 15px;">Comparativo: Entrada vs Saída</h4>
-    <canvas id="graficoEntradaSaida"></canvas>
-  </div>
-</div>
-<script>
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby3VFHiTu4oztFIM18Tve-RGFOMDef7bOoddFJRVMTYN8YhElpaZEVJusf-t2_Vba91yg/exec';
 
+<script>
+// ============================================
+// CONFIGURAÇÃO - ⚠️ COLE SUA URL AQUI
+// ============================================
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwuUrfjmq_5hMOLyf1WC2NtlhkBNKBEP3YEgKCFJi7MAkS4j_j0qbQWZwGqNrz7thdokA/exec';
+
+// ============================================
+// VARIÁVEIS GLOBAIS
+// ============================================
 let chartInstance = null;
 let chartEvolucaoInstance = null;
-let dados = { mesAno: '', bruto: 0, liquido: 0, totalDescontos: 0, ganhos: [], descontos: [], emprestimos: [], itensExtrados: false };
 let chartCategoriasInstance = null;
 let chartComposicaoInstance = null;
 let chartEntradaSaidaInstance = null;
+
+let dados = { 
+  mesAno: '', 
+  bruto: 0, 
+  liquido: 0, 
+  totalDescontos: 0, 
+  ganhos: [], 
+  descontos: [], 
+  emprestimos: [], 
+  itensExtrados: false 
+};
+
+// ============================================
+// ATUALIZAR STATUS DE SINCRONIZAÇÃO
+// ============================================
+function updateSyncStatus(status, message) {
+  const syncEl = document.getElementById('syncStatus');
+  syncEl.className = 'status-sync ' + status;
+  syncEl.innerHTML = message;
+}
+
+// ============================================
+// SINCRONIZAR COM GOOGLE SHEETS (ENVIAR)
+// ============================================
+async function sincronizarComSheets() {
+  try {
+    updateSyncStatus('', '⏳ Sincronizando...');
+    
+    const dadosParaEnviar = {
+      mes: dados.mesAno,
+      bruto: dados.bruto,
+      descontos: dados.totalDescontos,
+      liquido: dados.liquido,
+      ganhos: dados.ganhos || [],
+      descontos_itens: dados.descontos || [],
+      emprestimos: dados.emprestimos || []
+    };
+
+    const response = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      mode: 'no-cors',
+      body: JSON.stringify(dadosParaEnviar)
+    });
+
+    updateSyncStatus('synced', '✅ Sincronizado com Google Sheets');
+    setTimeout(() => updateSyncStatus('synced', '☁️ Dados salvos na nuvem'), 3000);
+    
+  } catch (error) {
+    console.error('Erro ao sincronizar:', error);
+    updateSyncStatus('error', '⚠️ Erro na sincronização - Dados salvos localmente');
+  }
+}
+
+// ============================================
+// CARREGAR DADOS DO SHEETS (IMPORTAR)
+// ============================================
+async function carregarDadosDoSheets() {
+  try {
+    updateSyncStatus('', '⏳ Carregando dados do Google Sheets...');
+    
+    const response = await fetch(APPS_SCRIPT_URL + '?action=readAll', {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    const result = await response.json();
+    
+    if (result.success && result.data && result.data.length > 0) {
+      const historicoLocal = JSON.parse(localStorage.getItem('historicoContracheques') || '[]');
+      const dadosSheets = result.data.map((item, index) => ({
+        id: Date.now() + index,
+        mesAno: item.mesAno,
+        bruto: parseFloat(item.bruto) || 0,
+        descontos: parseFloat(item.descontos) || 0,
+        liquido: parseFloat(item.liquido) || 0,
+        percentualDescontos: parseFloat(item.taxaDesconto) || 0,
+        ganhos: item.ganhos || [],
+        descontos_itens: item.descontos_itens || [],
+        emprestimos: item.emprestimos || [],
+        dataAnalise: item.dataSincronizacao || new Date().toISOString(),
+        origem: 'sheets'
+      }));
+      
+      const mescladoMap = new Map();
+      
+      historicoLocal.forEach(item => {
+        mescladoMap.set(item.mesAno, item);
+      });
+      
+      dadosSheets.forEach(item => {
+        mescladoMap.set(item.mesAno, item);
+      });
+      
+      const historicoMesclado = Array.from(mescladoMap.values());
+      localStorage.setItem('historicoContracheques', JSON.stringify(historicoMesclado));
+      
+      carregarHistorico();
+      updateSyncStatus('synced', `✅ ${dadosSheets.length} registros carregados`);
+      showAlert(`📊 ${dadosSheets.length} contracheques importados!`, 'success');
+      
+    } else {
+      updateSyncStatus('', '⏳ Nenhum dado no Sheets ainda');
+      showAlert('📭 Nenhum dado encontrado no Google Sheets', 'info');
+    }
+    
+  } catch (error) {
+    console.error('Erro ao carregar:', error);
+    updateSyncStatus('error', '⚠️ Erro ao carregar do Sheets');
+    showAlert('❌ Não foi possível conectar ao Google Sheets', 'error');
+  }
+}
+
+// ============================================
+// SALVAR NO HISTÓRICO LOCAL
+// ============================================
+function salvarNoHistorico() {
+  try {
+    let historico = JSON.parse(localStorage.getItem('historicoContracheques') || '[]');
+    const registro = {
+      id: Date.now(),
+      mesAno: dados.mesAno,
+      bruto: dados.bruto,
+      descontos: dados.totalDescontos,
+      liquido: dados.liquido,
+      percentualDescontos: dados.percentualDescontos,
+      ganhos: dados.ganhos,
+      descontos_itens: dados.descontos,
+      emprestimos: dados.emprestimos,
+      dataAnalise: new Date().toISOString()
+    };
+    
+    const indexExistente = historico.findIndex(h => h.mesAno === dados.mesAno);
+    
+    if (indexExistente >= 0) {
+      if (confirm(`Já existe um registro para ${formatMesAno(dados.mesAno)}. Deseja substituir?`)) {
+        historico[indexExistente] = registro;
+        showAlert(`✅ Registro de ${formatMesAno(dados.mesAno)} atualizado!`, 'success');
+      } else return;
+    } else {
+      historico.push(registro);
+      showAlert(`✅ Registro de ${formatMesAno(dados.mesAno)} salvo!`, 'success');
+    }
+    
+    localStorage.setItem('historicoContracheques', JSON.stringify(historico));
+    carregarHistorico();
+  } catch (error) {
+    console.error('Erro ao salvar:', error);
+    showAlert('❌ Erro ao salvar no histórico.', 'error');
+  }
+}
+
+// ============================================
+// CARREGAR HISTÓRICO
+// ============================================
+function carregarHistorico() {
+  try {
+    const historico = JSON.parse(localStorage.getItem('historicoContracheques') || '[]');
+    
+    if (historico.length === 0) {
+      document.getElementById('historicoTableContainer').innerHTML = `
+        <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+          <div style="font-size: 3rem; margin-bottom: 15px;">📭</div>
+          <div style="font-size: 1.2rem; font-weight: 600;">Nenhum contracheque analisado ainda</div>
+          <div style="margin-top: 10px;">Comece adicionando seu primeiro contracheque acima!</div>
+        </div>`;
+      return;
+    }
+    
+    historico.sort((a, b) => new Date(b.dataAnalise) - new Date(a.dataAnalise));
+    let historicoFiltrado = aplicarFiltros(historico);
+    
+    if (historicoFiltrado.length === 0) {
+      document.getElementById('historicoTableContainer').innerHTML = `
+        <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+          <div style="font-size: 3rem; margin-bottom: 15px;">🔍</div>
+          <div style="font-size: 1.2rem; font-weight: 600;">Nenhum registro encontrado</div>
+          <div style="margin-top: 10px;">Altere os filtros para ver mais resultados.</div>
+        </div>`;
+      return;
+    }
+    
+    let html = `<table class="historico-table"><thead><tr>
+      <th>📅 Mês/Ano</th>
+      <th class="amount">💵 Bruto</th>
+      <th class="amount">📉 Descontos</th>
+      <th class="amount">💰 Líquido</th>
+      <th style="text-align: center;">📊 Taxa</th>
+      <th style="text-align: center;">🏷️ Status</th>
+      <th style="text-align: center;">⚙️ Ações</th>
+    </tr></thead><tbody>`;
+    
+    historicoFiltrado.forEach(registro => {
+      const badge = registro.percentualDescontos > 35 ? 'badge-danger' : 
+                    registro.percentualDescontos > 25 ? 'badge-warning' : 'badge-success';
+      const status = registro.percentualDescontos > 35 ? 'Alto' : 
+                     registro.percentualDescontos > 25 ? 'Médio' : 'Baixo';
+      
+      html += `<tr onclick="visualizarRegistro(${registro.id})">
+        <td><strong>${formatMesAno(registro.mesAno)}</strong></td>
+        <td class="amount">R$ ${formatMoney(registro.bruto)}</td>
+        <td class="amount" style="color: var(--danger);">R$ ${formatMoney(registro.descontos)}</td>
+        <td class="amount" style="color: var(--success);">R$ ${formatMoney(registro.liquido)}</td>
+        <td style="text-align: center; font-family: 'IBM Plex Mono', monospace; font-weight: 700;">
+          ${registro.percentualDescontos.toFixed(1)}%
+        </td>
+        <td style="text-align: center;"><span class="badge ${badge}">${status}</span></td>
+        <td style="text-align: center;">
+          <button onclick="event.stopPropagation(); excluirRegistro(${registro.id})" 
+            style="background: var(--danger); color: white; border: none; padding: 6px 12px; 
+            border-radius: 6px; cursor: pointer; font-size: 0.85rem;">🗑️</button>
+        </td>
+      </tr>`;
+    });
+    
+    html += `</tbody></table>
+      <div style="margin-top: 15px; padding: 12px; background: var(--surface-alt); 
+        border-radius: 8px; text-align: center; font-size: 0.9rem; color: var(--text-muted);">
+        📊 Exibindo <strong>${historicoFiltrado.length}</strong> de <strong>${historico.length}</strong> registros
+      </div>`;
+    
+    document.getElementById('historicoTableContainer').innerHTML = html;
+  } catch (error) {
+    console.error('Erro ao carregar:', error);
+  }
+}
+
+// ============================================
+// APLICAR FILTROS
+// ============================================
+function aplicarFiltros(historico) {
+  const filtroMes = document.getElementById('filtroMes').value;
+  const filtroExibicao = document.getElementById('filtroExibicao').value;
+  let historicoFiltrado = [...historico];
+  
+  if (filtroMes) {
+    historicoFiltrado = historicoFiltrado.filter(h => h.mesAno === filtroMes);
+  }
+  
+  switch(filtroExibicao) {
+    case 'nenhum': 
+      historicoFiltrado = []; 
+      break;
+    case 'recente': 
+      historicoFiltrado = historicoFiltrado.slice(0, 1); 
+      break;
+    case 'ultimos3': 
+      historicoFiltrado = historicoFiltrado.slice(0, 3); 
+      break;
+    case 'ultimos6': 
+      historicoFiltrado = historicoFiltrado.slice(0, 6); 
+      break;
+    case 'ano': 
+      const anoAtual = new Date().getFullYear(); 
+      historicoFiltrado = historicoFiltrado.filter(h => h.mesAno.startsWith(anoAtual.toString())); 
+      break;
+  }
+  
+  return historicoFiltrado;
+}
+
+function filtrarHistorico() { 
+  carregarHistorico(); 
+}
+
+// ============================================
+// VISUALIZAR REGISTRO
+// ============================================
+function visualizarRegistro(id) {
+  try {
+    const historico = JSON.parse(localStorage.getItem('historicoContracheques') || '[]');
+    const registro = historico.find(h => h.id === id);
+    
+    if (!registro) { 
+      showAlert('❌ Registro não encontrado.', 'error'); 
+      return; 
+    }
+    
+    dados.mesAno = registro.mesAno;
+    dados.bruto = registro.bruto;
+    dados.totalDescontos = registro.descontos;
+    dados.liquido = registro.liquido;
+    dados.percentualDescontos = registro.percentualDescontos;
+    dados.ganhos = registro.ganhos || [];
+    dados.descontos = registro.descontos_itens || [];
+    dados.emprestimos = registro.emprestimos || [];
+    dados.percentualLiquido = 100 - registro.percentualDescontos;
+    
+    document.getElementById('resultsContainer').classList.add('active');
+    renderSummary(registro.bruto, registro.descontos, registro.liquido);
+    renderStats(registro.bruto, registro.descontos, registro.liquido, registro.percentualDescontos);
+    renderChart(registro.bruto, registro.descontos, registro.liquido);
+    renderDetails();
+    renderComparison(registro.bruto, registro.descontos, registro.liquido, registro.percentualDescontos);
+    renderSimulation();
+    generateInsights(registro.percentualDescontos, dados.percentualLiquido);
+    renderGraficosAdicionais();
+    
+    document.getElementById('resultsContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    showAlert(`📊 Visualizando contracheque de ${formatMesAno(registro.mesAno)}`, 'info');
+  } catch (error) {
+    console.error('Erro:', error);
+    showAlert('❌ Erro ao carregar registro.', 'error');
+  }
+}
+
+// ============================================
+// EXCLUIR REGISTRO
+// ============================================
+function excluirRegistro(id) {
+  if (confirm('⚠️ Tem certeza que deseja excluir este registro?')) {
+    try {
+      let historico = JSON.parse(localStorage.getItem('historicoContracheques') || '[]');
+      historico = historico.filter(h => h.id !== id);
+      localStorage.setItem('historicoContracheques', JSON.stringify(historico));
+      carregarHistorico();
+      showAlert('✅ Registro excluído com sucesso!', 'success');
+    } catch (error) {
+      console.error('Erro:', error);
+      showAlert('❌ Erro ao excluir.', 'error');
+    }
+  }
+}
+
+// ============================================
+// LIMPAR HISTÓRICO
+// ============================================
+function limparHistorico() {
+  if (confirm('⚠️ ATENÇÃO: Esta ação irá excluir TODOS os registros. Deseja continuar?')) {
+    if (confirm('🚨 Última confirmação: Todos os dados serão perdidos!')) {
+      localStorage.removeItem('historicoContracheques');
+      carregarHistorico();
+      showAlert('✅ Histórico limpo!', 'success');
+    }
+  }
+}
+
+// ============================================
+// FORMAT FUNCTIONS
+// ============================================
+function formatMesAno(mesAno) {
+  if (!mesAno) return 'N/A';
+  const [ano, mes] = mesAno.split('-');
+  const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  return `${meses[parseInt(mes) - 1]}/${ano}`;
+}
+
+function formatMoney(value) {
+  if (typeof value !== 'number') return '0,00';
+  return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function parseValorBR(valor) {
+  if (!valor) return 0;
+  return parseFloat(valor.toString().replace(/\./g, '').replace(',', '.')) || 0;
+}
+
+// ============================================
+// GRÁFICO DE EVOLUÇÃO
+// ============================================
+function exibirGraficoEvolucao() {
+  const container = document.getElementById('graficoEvolucaoContainer');
+  
+  if (container.style.display === 'block') { 
+    container.style.display = 'none'; 
+    return; 
+  }
+  
+  try {
+    const historico = JSON.parse(localStorage.getItem('historicoContracheques') || '[]');
+    
+    if (historico.length === 0) { 
+      showAlert('📭 Nenhum dado para exibir.', 'warning'); 
+      return; 
+    }
+    
+    historico.sort((a, b) => a.mesAno.localeCompare(b.mesAno));
+    
+    const labels = historico.map(h => formatMesAno(h.mesAno));
+    const brutos = historico.map(h => h.bruto);
+    const descontos = historico.map(h => h.descontos);
+    const liquidos = historico.map(h => h.liquido);
+    
+    const ctx = document.getElementById('graficoEvolucao').getContext('2d');
+    
+    if (chartEvolucaoInstance) chartEvolucaoInstance.destroy();
+    
+    chartEvolucaoInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          { 
+            label: 'Bruto', 
+            data: brutos, 
+            borderColor: 'rgb(10, 77, 60)', 
+            backgroundColor: 'rgba(10, 77, 60, 0.1)', 
+            tension: 0.4 
+          },
+          { 
+            label: 'Descontos', 
+            data: descontos, 
+            borderColor: 'rgb(239, 68, 68)', 
+            backgroundColor: 'rgba(239, 68, 68, 0.1)', 
+            tension: 0.4 
+          },
+          { 
+            label: 'Líquido', 
+            data: liquidos, 
+            borderColor: 'rgb(232, 185, 49)', 
+            backgroundColor: 'rgba(232, 185, 49, 0.1)', 
+            tension: 0.4 
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, position: 'top' },
+          tooltip: { 
+            callbacks: { 
+              label: function(context) { 
+                return context.dataset.label + ': R$ ' + formatMoney(context.parsed.y); 
+              } 
+            } 
+          }
+        },
+        scales: { 
+          y: { 
+            beginAtZero: true, 
+            ticks: { 
+              callback: function(value) { 
+                return 'R$ ' + formatMoney(value); 
+              } 
+            } 
+          } 
+        }
+      }
+    });
+    
+    container.style.display = 'block';
+    container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } catch (error) {
+    console.error('Erro:', error);
+    showAlert('❌ Erro ao gerar gráfico.', 'error');
+  }
+}
+
+// ============================================
+// DRAG & DROP
+// ============================================
+const uploadArea = document.getElementById('uploadArea');
+const fileInput = document.getElementById('arquivo');
+
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(e => 
+  uploadArea.addEventListener(e, preventDefaults, false)
+);
+
+function preventDefaults(e) { 
+  e.preventDefault(); 
+  e.stopPropagation(); 
+}
+
+['dragenter', 'dragover'].forEach(e => 
+  uploadArea.addEventListener(e, () => uploadArea.classList.add('dragover'))
+);
+
+['dragleave', 'drop'].forEach(e => 
+  uploadArea.addEventListener(e, () => uploadArea.classList.remove('dragover'))
+);
+
+uploadArea.addEventListener('drop', (e) => { 
+  fileInput.files = e.dataTransfer.files; 
+  processar(); 
+});
+
+// ============================================
+// SWITCH TABS
+// ============================================
+function switchResultTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById(`${tab}-result-tab`).classList.add('active');
+}
+
+// ============================================
+// PROGRESS BAR
+// ============================================
+function updateProgress(percent, text) {
+  const progressContainer = document.getElementById('progressContainer');
+  const progressFill = document.getElementById('progressFill');
+  const progressText = document.getElementById('progressText');
+  
+  progressContainer.classList.add('active');
+  progressFill.style.width = percent + '%';
+  progressText.textContent = text;
+  
+  if (percent >= 100) {
+    setTimeout(() => progressContainer.classList.remove('active'), 1000);
+  }
+}
+
+// ============================================
+// PROCESSAR ARQUIVO/TEXTO
+// ============================================
+async function processar() {
+  const file = document.getElementById("arquivo").files[0];
+  let texto = document.getElementById("textoColado").value;
+  const mesAno = document.getElementById("mesAnoReferencia").value;
+  
+  if (!mesAno) { 
+    showAlert('⚠️ Selecione o Mês/Ano!', 'warning'); 
+    document.getElementById('mesAnoReferencia').focus(); 
+    return; 
+  }
+  
+  if (!file && !texto) { 
+    showAlert('Envie um arquivo ou cole o texto.', 'warning'); 
+    return; 
+  }
+  
+  dados.mesAno = mesAno;
+  updateProgress(10, 'Iniciando...');
+  
+  if (file) {
+    if (file.type === "application/pdf") {
+      updateProgress(30, 'Lendo PDF...');
+      const reader = new FileReader();
+      reader.onload = async function () {
+        try {
+          const pdf = await pdfjsLib.getDocument({data: reader.result}).promise;
+          updateProgress(50, 'Extraindo...');
+          let content = "";
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const text = await page.getTextContent();
+            content += text.items.map(t => t.str).join(" ") + "\n";
+          }
+          updateProgress(80, 'Analisando...');
+          extrairDados(content);
+          updateProgress(100, 'Concluído!');
+        } catch (error) {
+          updateProgress(0, '');
+          showAlert('Erro: ' + error.message, 'error');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      updateProgress(30, 'Processando imagem...');
+      try {
+        const { data } = await Tesseract.recognize(file, 'por', {
+          logger: m => { 
+            if (m.status === 'recognizing text') {
+              updateProgress(30 + (m.progress * 50), 'Reconhecendo...'); 
+            }
+          }
+        });
+        updateProgress(90, 'Finalizando...');
+        extrairDados(data.text);
+        updateProgress(100, 'Concluído!');
+      } catch (error) {
+        updateProgress(0, '');
+        showAlert('Erro: ' + error.message, 'error');
+      }
+    }
+  } else if (texto) {
+    updateProgress(50, 'Processando...');
+    extrairDados(texto);
+    updateProgress(100, 'Concluído!');
+  }
+}
+
+// ============================================
+// EXTRAIR DADOS DO TEXTO
+// ============================================
+function extrairDados(txt) {
+  let totalBruto = 0, totalDescontos = 0, totalLiquido = 0;
+  
+  const linhasTotais = [
+    /TOTAL\s+DE\s+GANHOS[^0-9]*?(\d{1,3}(?:\.\d{3})*,\d{2})[^0-9]*?TOTAL\s+DE\s+DESCONTOS[^0-9]*?(\d{1,3}(?:\.\d{3})*,\d{2})[^0-9]*?L[IÍ]QUIDO[^0-9]*?(\d{1,3}(?:\.\d{3})*,\d{2})/i,
+    /\*+\s*(\d{1,3}(?:\.\d{3})*,\d{2})\s+\*+\s*(\d{1,3}(?:\.\d{3})*,\d{2})\s+\*+\s*(\d{1,3}(?:\.\d{3})*,\d{2})/i,
+    /TOTAL.*?(\d{1,3}(?:\.\d{3})*,\d{2}).*?(\d{1,3}(?:\.\d{3})*,\d{2}).*?(\d{1,3}(?:\.\d{3})*,\d{2})/i
+  ];
+  
+  for (let regex of linhasTotais) {
+    const match = txt.match(regex);
+    if (match) {
+      totalBruto = parseValorBR(match[1]);
+      totalDescontos = parseValorBR(match[2]);
+      totalLiquido = parseValorBR(match[3]);
+      break;
+    }
+  }
+  
+  dados.bruto = totalBruto;
+  dados.totalDescontos = totalDescontos;
+  dados.liquido = totalLiquido;
+  dados.itensExtrados = true;
+  
+  extrairItensIndividuais(txt);
+  
+  if (totalBruto > 0) {
+    analisar();
+    showAlert(`✅ Processado! Bruto R$ ${formatMoney(totalBruto)} | Líquido R$ ${formatMoney(totalLiquido)}`, 'success');
+  } else {
+    showAlert('⚠️ Não foi possível extrair valores. Tente a entrada manual.', 'warning');
+  }
+}
+
+// ============================================
+// EXTRAIR ITENS INDIVIDUAIS
+// ============================================
+function extrairItensIndividuais(txt) {
+  dados.ganhos = []; 
+  dados.descontos = []; 
+  dados.emprestimos = [];
+  
+  const linhas = txt.split('\n');
+  
+  for (let linha of linhas) {
+    const matchValor = linha.match(/(\d{1,3}(?:\.\d{3})*,\d{2})/g);
+    
+    if (matchValor && matchValor.length > 0) {
+      const valor = parseValorBR(matchValor[matchValor.length - 1]);
+      const descricao = linha.replace(/^\d+\s*/, '').replace(/\d.*$/, '').trim();
+      
+      if (valor > 0 && descricao.length > 3) {
+        const matchParcelas = linha.match(/(\d{3})\|(\d{3})/);
+        const ehEmprestimo = /BANCO|EMP|CART|CONSIG|EMPREST/i.test(linha);
+        const ehDesconto = /IMPOSTO|PREV|INSS|DESCONTO/i.test(linha);
+        
+        if (ehEmprestimo && matchParcelas) {
+          dados.emprestimos.push({ 
+            descricao, 
+            valor, 
+            parcelaAtual: parseInt(matchParcelas[1]), 
+            totalParcelas: parseInt(matchParcelas[2]) 
+          });
+          dados.descontos.push({ descricao, valor });
+        } else if (ehDesconto || ehEmprestimo) {
+          dados.descontos.push({ descricao, valor });
+        } else if (/SOLDO|SALARIO|GRAT|EXTRA|BONUS|ETAPA|VENCIMENTO/i.test(linha)) {
+          dados.ganhos.push({ descricao, valor });
+        }
+      }
+    }
+  }
+}
+
+// ============================================
+// ANALISAR MANUAL
+// ============================================
+function analisarManual() {
+  const mesAno = document.getElementById("mesAnoManual").value;
+  const bruto = parseFloat(document.getElementById("totalBrutoManual").value) || 0;
+  const descontos = parseFloat(document.getElementById("totalDescontosManual").value) || 0;
+  const liquido = parseFloat(document.getElementById("totalLiquidoManual").value) || 0;
+  
+  if (!mesAno) { 
+    showAlert('⚠️ Selecione o Mês/Ano!', 'warning'); 
+    document.getElementById('mesAnoManual').focus(); 
+    return; 
+  }
+  
+  if (bruto === 0) { 
+    showAlert('Insira o Total Bruto.', 'warning'); 
+    return; 
+  }
+  
+  const liquidoCalculado = liquido > 0 ? liquido : (bruto - descontos);
+  
+  dados.mesAno = mesAno;
+  dados.bruto = bruto;
+  dados.totalDescontos = descontos;
+  dados.liquido = liquidoCalculado;
+  dados.itensExtrados = false;
+  dados.ganhos = [];
+  dados.descontos = [];
+  dados.emprestimos = [];
+  
+  analisar();
+  showAlert('✅ Análise concluída!', 'success');
+}
+
+// ============================================
+// ANALISAR
+// ============================================
+function analisar() {
+  const bruto = dados.bruto, descontos = dados.totalDescontos, liquido = dados.liquido;
+  
+  if (bruto === 0) {
+    showAlert('Não foi possível extrair os valores.', 'error');
+    return;
+  }
+  
+  const liquidoCalculado = Math.round((bruto - descontos) * 100) / 100;
+  const diferencaLiquido = Math.abs(liquido - liquidoCalculado);
+  
+  if (diferencaLiquido > 0.10) {
+    console.log(`Diferença líquido: R$ ${diferencaLiquido.toFixed(2)}`);
+  }
+
+  const percDescontos = bruto > 0 ? Math.round((descontos / bruto * 100) * 100) / 100 : 0;
+  const percLiquido = bruto > 0 ? Math.round((liquido / bruto * 100) * 100) / 100 : 0;
+  dados.percentualDescontos = percDescontos;
+  dados.percentualLiquido = percLiquido;
+
+  document.getElementById('resultsContainer').classList.add('active');
+  renderSummary(bruto, descontos, liquido);
+  renderStats(bruto, descontos, liquido, percDescontos);
+  renderChart(bruto, descontos, liquido);
+  renderDetails();
+  renderComparison(bruto, descontos, liquido, percDescontos);
+  renderSimulation();
+  generateInsights(percDescontos, percLiquido);
+  renderGraficosAdicionais();
+
+  salvarNoHistorico();
+  sincronizarComSheets();
+
+  document.getElementById('resultsContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ============================================
+// RENDER FUNCTIONS
+// ============================================
+function renderSummary(bruto, descontos, liquido) {
+  const container = document.getElementById('summaryGrid');
+  container.innerHTML = `
+    <div class="summary-item">
+      <div class="summary-item-label">Bruto</div>
+      <div class="summary-item-value">R$ ${formatMoney(bruto)}</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-item-label">Descontos</div>
+      <div class="summary-item-value" style="color: var(--danger);">R$ ${formatMoney(descontos)}</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-item-label">Líquido</div>
+      <div class="summary-item-value" style="color: var(--success);">R$ ${formatMoney(liquido)}</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-item-label">Taxa de Desconto</div>
+      <div class="summary-item-value">${dados.percentualDescontos.toFixed(1)}%</div>
+    </div>
+  `;
+}
+
+function renderStats(bruto, descontos, liquido, percDescontos) {
+  const container = document.getElementById('statsGrid');
+  container.innerHTML = `
+    <div class="stat-card ${percDescontos > 35 ? 'negative' : percDescontos > 25 ? 'warning' : 'positive'}">
+      <div class="stat-label">Taxa de Desconto</div>
+      <div class="stat-value">${percDescontos.toFixed(1)}%</div>
+      <div class="stat-change ${percDescontos > 35 ? 'negative' : percDescontos > 25 ? 'warning' : 'positive'}">
+        ${percDescontos > 35 ? 'Alta – atenção!' : percDescontos > 25 ? 'Moderada' : 'Baixa – ótimo!'}
+      </div>
+    </div>
+    <div class="stat-card info">
+      <div class="stat-label">Líquido/Bruto</div>
+      <div class="stat-value">${dados.percentualLiquido.toFixed(1)}%</div>
+    </div>
+    <div class="stat-card positive">
+      <div class="stat-label">Valor Líquido</div>
+      <div class="stat-value">R$ ${formatMoney(liquido)}</div>
+    </div>
+  `;
+}
+
+function renderChart(bruto, descontos, liquido) {
+  const ctx = document.getElementById('grafico').getContext('2d');
+  if (chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Líquido', 'Descontos'],
+      datasets: [{
+        data: [liquido, descontos],
+        backgroundColor: ['rgba(232, 185, 49, 0.8)', 'rgba(239, 68, 68, 0.8)'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom' },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return context.label + ': R$ ' + formatMoney(context.parsed);
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderDetails() {
+  let html = '<h3 style="margin-bottom: 15px; color: var(--primary);">📋 Detalhamento dos Itens</h3>';
+  
+  if (dados.ganhos && dados.ganhos.length > 0) {
+    html += '<h4 style="margin: 20px 0 10px; color: var(--success);">💰 Ganhos</h4>';
+    html += '<table class="breakdown-table"><thead><tr><th>Descrição</th><th class="amount">Valor</th></tr></thead><tbody>';
+    dados.ganhos.forEach(item => {
+      html += `<tr><td>${item.descricao}</td><td class="amount">R$ ${formatMoney(item.valor)}</td></tr>`;
+    });
+    const totalGanhos = dados.ganhos.reduce((sum, i) => sum + i.valor, 0);
+    html += `<tr style="background: var(--surface-alt); font-weight: 700;"><td>TOTAL</td><td class="amount">R$ ${formatMoney(totalGanhos)}</td></tr>`;
+    html += '</tbody></table>';
+  }
+  
+  if (dados.emprestimos && dados.emprestimos.length > 0) {
+    html += '<h4 style="margin: 20px 0 10px; color: var(--warning);">🏦 Empréstimos/Consignados</h4>';
+    html += '<table class="breakdown-table"><thead><tr><th>Descrição</th><th class="amount">Valor</th><th style="text-align:center;">Parcela</th></tr></thead><tbody>';
+    dados.emprestimos.forEach(item => {
+      html += `<tr><td>${item.descricao}</td><td class="amount">R$ ${formatMoney(item.valor)}</td><td style="text-align:center;">${item.parcelaAtual}/${item.totalParcelas}</td></tr>`;
+    });
+    const totalEmp = dados.emprestimos.reduce((sum, i) => sum + i.valor, 0);
+    html += `<tr style="background: var(--surface-alt); font-weight: 700;"><td>SUBTOTAL</td><td class="amount" colspan="2">R$ ${formatMoney(totalEmp)}</td></tr>`;
+    html += '</tbody></table>';
+  }
+  
+  document.getElementById('detailsContent').innerHTML = html || '<p>Nenhum item detalhado encontrado.</p>';
+}
+
+function renderComparison(bruto, descontos, liquido, percDescontos) {
+  const historico = JSON.parse(localStorage.getItem('historicoContracheques') || '[]');
+  const anteriores = historico.filter(h => h.mesAno !== dados.mesAno);
+  
+  if (anteriores.length === 0) {
+    document.getElementById('comparisonContent').innerHTML = '<p>📊 Nenhum registro anterior para comparação.</p>';
+    return;
+  }
+  
+  const mediaBruto = anteriores.reduce((sum, h) => sum + h.bruto, 0) / anteriores.length;
+  const mediaDescontos = anteriores.reduce((sum, h) => sum + h.descontos, 0) / anteriores.length;
+  const mediaLiquido = anteriores.reduce((sum, h) => sum + h.liquido, 0) / anteriores.length;
+
+  document.getElementById('comparisonContent').innerHTML = `
+    <div class="comparison-grid">
+      <div class="comparison-card">
+        <div class="comparison-label">Bruto Atual vs Média</div>
+        <div class="comparison-value" style="color: ${bruto > mediaBruto ? 'var(--success)' : 'var(--danger)'};">
+          R$ ${formatMoney(bruto)}
+        </div>
+        <div style="font-size: 0.9rem; margin-top: 8px;">Média: R$ ${formatMoney(mediaBruto)}</div>
+      </div>
+      <div class="comparison-card">
+        <div class="comparison-label">Descontos Atual vs Média</div>
+        <div class="comparison-value" style="color: ${descontos > mediaDescontos ? 'var(--danger)' : 'var(--success)'};">
+          R$ ${formatMoney(descontos)}
+        </div>
+        <div style="font-size: 0.9rem; margin-top: 8px;">Média: R$ ${formatMoney(mediaDescontos)}</div>
+      </div>
+      <div class="comparison-card">
+        <div class="comparison-label">Líquido Atual vs Média</div>
+        <div class="comparison-value" style="color: ${liquido > mediaLiquido ? 'var(--success)' : 'var(--danger)'};">
+          R$ ${formatMoney(liquido)}
+        </div>
+        <div style="font-size: 0.9rem; margin-top: 8px;">Média: R$ ${formatMoney(mediaLiquido)}</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSimulation() {
+  document.getElementById('simulationControls').innerHTML = `
+    <div class="slider-group">
+      <label class="slider-label">
+        Aumento de Bruto (%)
+        <span class="slider-value" id="simBrutoValue">0%</span>
+      </label>
+      <input type="range" min="-10" max="30" step="1" value="0" id="simBrutoSlider" oninput="atualizarSimulacao()">
+    </div>
+    <div class="slider-group">
+      <label class="slider-label">
+        Redução de Descontos (%)
+        <span class="slider-value" id="simDescValue">0%</span>
+      </label>
+      <input type="range" min="0" max="50" step="1" value="0" id="simDescSlider" oninput="atualizarSimulacao()">
+    </div>
+  `;
+  atualizarSimulacao();
+}
+
+function atualizarSimulacao() {
+  const brutoPerc = parseFloat(document.getElementById('simBrutoSlider').value) / 100;
+  const descPerc = parseFloat(document.getElementById('simDescSlider').value) / 100;
+  document.getElementById('simBrutoValue').textContent = `${(brutoPerc * 100).toFixed(0)}%`;
+  document.getElementById('simDescValue').textContent = `${(descPerc * 100).toFixed(0)}%`;
+
+  const novoBruto = dados.bruto * (1 + brutoPerc);
+  const novoDesconto = dados.totalDescontos * (1 - descPerc);
+  const novoLiquido = novoBruto - novoDesconto;
+
+  document.getElementById('simulationResults').innerHTML = `
+    <div class="alert alert-info" style="margin-top: 20px; position: relative;">
+      <strong>Resultado da Simulação:</strong><br>
+      Novo Bruto: R$ ${formatMoney(novoBruto)}<br>
+      Novos Descontos: R$ ${formatMoney(novoDesconto)}<br>
+      <strong style="font-size: 1.2rem; color: var(--primary);">Novo Líquido: R$ ${formatMoney(novoLiquido)}</strong>
+    </div>
+  `;
+}
+
+function generateInsights(percDescontos, percLiquido) {
+  const insights = [];
+  
+  if (percDescontos > 35) {
+    insights.push('⚠️ Sua taxa de desconto está acima de 35%. Considere renegociar empréstimos ou revisar benefícios.');
+  } else if (percDescontos > 25) {
+    insights.push('💡 Sua taxa de desconto está moderada. Fique atento a novos compromissos financeiros.');
+  } else {
+    insights.push('✅ Excelente! Sua taxa de desconto está baixa. Você tem boa margem para investir ou poupar.');
+  }
+
+  if (dados.emprestimos && dados.emprestimos.length > 0) {
+    const totalEmprestimos = dados.emprestimos.reduce((sum, e) => sum + e.valor, 0);
+    const percEmprestimos = (totalEmprestimos / dados.bruto * 100).toFixed(1);
+    insights.push(`🏦 Empréstimos consignados representam ${percEmprestimos}% do seu bruto. Avalie se vale a pena quitá-los antecipadamente.`);
+  }
+
+  if (percLiquido > 75) {
+    insights.push('📈 Seu líquido representa mais de 75% do bruto – ótimo momento para planejar investimentos!');
+  }
+
+  document.getElementById('insightsContent').innerHTML = insights.map(i => `<div class="insight-item"><div class="insight-text">${i}</div></div>`).join('');
+}
 
 function renderGraficosAdicionais() {
   renderGraficoCategoriasDescontos();
@@ -1066,855 +2034,28 @@ function renderGraficoEntradaSaida() {
 }
 
 // ============================================
-// FUNÇÕES DE SINCRONIZAÇÃO
+// ALERT SYSTEM
 // ============================================
-
-function updateSyncStatus(status, message) {
-  const syncEl = document.getElementById('syncStatus');
-  syncEl.className = 'status-sync ' + status;
-  syncEl.innerHTML = message;
-}
-
-async function sincronizarComSheets() {
-  try {
-    updateSyncStatus('', '⏳ Sincronizando...');
-    
-    const dadosParaEnviar = {
-      mes: dados.mesAno,
-      bruto: dados.bruto,
-      descontos: dados.totalDescontos,
-      liquido: dados.liquido,
-      emprestimos: dados.emprestimos || []
-    };
-
-    const response = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify(dadosParaEnviar)
-    });
-
-    if (response.ok) {
-      updateSyncStatus('synced', '✅ Sincronizado com Google Sheets');
-      setTimeout(() => updateSyncStatus('synced', '☁️ Dados salvos na nuvem'), 3000);
-    } else {
-      throw new Error('Erro na resposta');
-    }
-  } catch (error) {
-    console.error('Erro ao sincronizar:', error);
-    updateSyncStatus('error', '⚠️ Erro na sincronização - Dados salvos localmente');
-  }
-}
-
-// ============================================
-// FUNÇÕES DE HISTÓRICO LOCAL
-// ============================================
-
-function salvarNoHistorico() {
-  try {
-    let historico = JSON.parse(localStorage.getItem('historicoContracheques') || '[]');
-    const registro = {
-      id: Date.now(),
-      mesAno: dados.mesAno,
-      bruto: dados.bruto,
-      descontos: dados.totalDescontos,
-      liquido: dados.liquido,
-      percentualDescontos: dados.percentualDescontos,
-      ganhos: dados.ganhos,
-      descontos_itens: dados.descontos,
-      emprestimos: dados.emprestimos,
-      dataAnalise: new Date().toISOString()
-    };
-    
-    const indexExistente = historico.findIndex(h => h.mesAno === dados.mesAno);
-    
-    if (indexExistente >= 0) {
-      if (confirm(`Já existe um registro para ${formatMesAno(dados.mesAno)}. Deseja substituir?`)) {
-        historico[indexExistente] = registro;
-        showAlert(`✅ Registro de ${formatMesAno(dados.mesAno)} atualizado!`, 'success');
-      } else return;
-    } else {
-      historico.push(registro);
-      showAlert(`✅ Registro de ${formatMesAno(dados.mesAno)} salvo!`, 'success');
-    }
-    
-    localStorage.setItem('historicoContracheques', JSON.stringify(historico));
-    carregarHistorico();
-  } catch (error) {
-    console.error('Erro ao salvar:', error);
-    showAlert('❌ Erro ao salvar no histórico.', 'error');
-  }
-}
-
-function carregarHistorico() {
-  try {
-    const historico = JSON.parse(localStorage.getItem('historicoContracheques') || '[]');
-    
-    if (historico.length === 0) {
-      document.getElementById('historicoTableContainer').innerHTML = `
-        <div style="text-align: center; padding: 40px; color: var(--text-muted);">
-          <div style="font-size: 3rem; margin-bottom: 15px;">📭</div>
-          <div style="font-size: 1.2rem; font-weight: 600;">Nenhum contracheque analisado ainda</div>
-          <div style="margin-top: 10px;">Comece adicionando seu primeiro contracheque acima!</div>
-        </div>`;
-      return;
-    }
-    
-    historico.sort((a, b) => new Date(b.dataAnalise) - new Date(a.dataAnalise));
-    let historicoFiltrado = aplicarFiltros(historico);
-    
-    if (historicoFiltrado.length === 0) {
-      document.getElementById('historicoTableContainer').innerHTML = `
-        <div style="text-align: center; padding: 40px; color: var(--text-muted);">
-          <div style="font-size: 3rem; margin-bottom: 15px;">🔍</div>
-          <div style="font-size: 1.2rem; font-weight: 600;">Nenhum registro encontrado</div>
-          <div style="margin-top: 10px;">Altere os filtros para ver mais resultados.</div>
-        </div>`;
-      return;
-    }
-    
-    let html = `<table class="historico-table"><thead><tr>
-      <th>📅 Mês/Ano</th>
-      <th class="amount">💵 Bruto</th>
-      <th class="amount">📉 Descontos</th>
-      <th class="amount">💰 Líquido</th>
-      <th style="text-align: center;">📊 Taxa</th>
-      <th style="text-align: center;">🏷️ Status</th>
-      <th style="text-align: center;">⚙️ Ações</th>
-    </tr></thead><tbody>`;
-    
-    historicoFiltrado.forEach(registro => {
-      const badge = registro.percentualDescontos > 35 ? 'badge-danger' : 
-                    registro.percentualDescontos > 25 ? 'badge-warning' : 'badge-success';
-      const status = registro.percentualDescontos > 35 ? 'Alto' : 
-                     registro.percentualDescontos > 25 ? 'Médio' : 'Baixo';
-      
-      html += `<tr onclick="visualizarRegistro(${registro.id})">
-        <td><strong>${formatMesAno(registro.mesAno)}</strong></td>
-        <td class="amount">R$ ${formatMoney(registro.bruto)}</td>
-        <td class="amount" style="color: var(--danger);">R$ ${formatMoney(registro.descontos)}</td>
-        <td class="amount" style="color: var(--success);">R$ ${formatMoney(registro.liquido)}</td>
-        <td style="text-align: center; font-family: 'IBM Plex Mono', monospace; font-weight: 700;">
-          ${registro.percentualDescontos.toFixed(1)}%
-        </td>
-        <td style="text-align: center;"><span class="badge ${badge}">${status}</span></td>
-        <td style="text-align: center;">
-          <button onclick="event.stopPropagation(); excluirRegistro(${registro.id})" 
-            style="background: var(--danger); color: white; border: none; padding: 6px 12px; 
-            border-radius: 6px; cursor: pointer; font-size: 0.85rem;">🗑️</button>
-        </td>
-      </tr>`;
-    });
-    
-    html += `</tbody></table>
-      <div style="margin-top: 15px; padding: 12px; background: var(--surface-alt); 
-        border-radius: 8px; text-align: center; font-size: 0.9rem; color: var(--text-muted);">
-        📊 Exibindo <strong>${historicoFiltrado.length}</strong> de <strong>${historico.length}</strong> registros
-      </div>`;
-    
-    document.getElementById('historicoTableContainer').innerHTML = html;
-  } catch (error) {
-    console.error('Erro ao carregar:', error);
-  }
-}
-
-function aplicarFiltros(historico) {
-  const filtroMes = document.getElementById('filtroMes').value;
-  const filtroExibicao = document.getElementById('filtroExibicao').value;
-  let historicoFiltrado = [...historico];
-  
-  if (filtroMes) {
-    historicoFiltrado = historicoFiltrado.filter(h => h.mesAno === filtroMes);
-  }
-  
-  switch (filtroExibicao) {
-    case 'nenhum': 
-      historicoFiltrado = []; 
-      break;
-    case 'recente': 
-      historicoFiltrado = historicoFiltrado.slice(0, 1); 
-      break;
-    case 'ultimos3': 
-      historicoFiltrado = historicoFiltrado.slice(0, 3); 
-      break;
-    case 'ultimos6': 
-      historicoFiltrado = historicoFiltrado.slice(0, 6); 
-      break;
-    case 'ano': 
-      const anoAtual = new Date().getFullYear(); 
-      historicoFiltrado = historicoFiltrado.filter(h => h.mesAno.startsWith(anoAtual.toString())); 
-      break;
-  }
-  
-  return historicoFiltrado;
-}
-
-function filtrarHistorico() { 
-  carregarHistorico(); 
-}
-
-function visualizarRegistro(id) {
-  try {
-    const historico = JSON.parse(localStorage.getItem('historicoContracheques') || '[]');
-    const registro = historico.find(h => h.id === id);
-    
-    if (!registro) { 
-      showAlert('❌ Registro não encontrado.', 'error'); 
-      return; 
-    }
-    
-    dados.mesAno = registro.mesAno;
-    dados.bruto = registro.bruto;
-    dados.totalDescontos = registro.descontos;
-    dados.liquido = registro.liquido;
-    dados.percentualDescontos = registro.percentualDescontos;
-    dados.ganhos = registro.ganhos || [];
-    dados.descontos = registro.descontos_itens || [];
-    dados.emprestimos = registro.emprestimos || [];
-    dados.percentualLiquido = 100 - registro.percentualDescontos;
-    
-    document.getElementById('resultsContainer').classList.add('active');
-    renderSummary(registro.bruto, registro.descontos, registro.liquido);
-    renderStats(registro.bruto, registro.descontos, registro.liquido, registro.percentualDescontos);
-    renderChart(registro.bruto, registro.descontos, registro.liquido);
-    renderDetails();
-    renderComparison(registro.bruto, registro.descontos, registro.liquido, registro.percentualDescontos);
-    renderSimulation();
-    generateInsights(registro.percentualDescontos, dados.percentualLiquido);
-    
-    document.getElementById('resultsContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    showAlert(`📊 Visualizando contracheque de ${formatMesAno(registro.mesAno)}`, 'info');
-  } catch (error) {
-    console.error('Erro:', error);
-    showAlert('❌ Erro ao carregar registro.', 'error');
-  }
-}
-
-function excluirRegistro(id) {
-  if (confirm('⚠️ Tem certeza que deseja excluir este registro?')) {
-    try {
-      let historico = JSON.parse(localStorage.getItem('historicoContracheques') || '[]');
-      historico = historico.filter(h => h.id !== id);
-      localStorage.setItem('historicoContracheques', JSON.stringify(historico));
-      carregarHistorico();
-      showAlert('✅ Registro excluído com sucesso!', 'success');
-    } catch (error) {
-      console.error('Erro:', error);
-      showAlert('❌ Erro ao excluir.', 'error');
-    }
-  }
-}
-
-function limparHistorico() {
-  if (confirm('⚠️ ATENÇÃO: Esta ação irá excluir TODOS os registros. Deseja continuar?')) {
-    if (confirm('🚨 Última confirmação: Todos os dados serão perdidos!')) {
-      localStorage.removeItem('historicoContracheques');
-      carregarHistorico();
-      showAlert('✅ Histórico limpo!', 'success');
-    }
-  }
-}
-
-function formatMesAno(mesAno) {
-  if (!mesAno) return 'N/A';
-  const [ano, mes] = mesAno.split('-');
-  const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-  return `${meses[parseInt(mes) - 1]}/${ano}`;
-}
-
-function exibirGraficoEvolucao() {
-  const container = document.getElementById('graficoEvolucaoContainer');
-  
-  if (container.style.display === 'block') { 
-    container.style.display = 'none'; 
-    return; 
-  }
-  
-  try {
-    const historico = JSON.parse(localStorage.getItem('historicoContracheques') || '[]');
-    
-    if (historico.length === 0) { 
-      showAlert('📭 Nenhum dado para exibir.', 'warning'); 
-      return; 
-    }
-    
-    historico.sort((a, b) => a.mesAno.localeCompare(b.mesAno));
-    
-    const labels = historico.map(h => formatMesAno(h.mesAno));
-    const brutos = historico.map(h => h.bruto);
-    const descontos = historico.map(h => h.descontos);
-    const liquidos = historico.map(h => h.liquido);
-    
-    const ctx = document.getElementById('graficoEvolucao').getContext('2d');
-    
-    if (chartEvolucaoInstance) chartEvolucaoInstance.destroy();
-    
-    chartEvolucaoInstance = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [
-          { 
-            label: 'Bruto', 
-            data: brutos, 
-            borderColor: 'rgb(10, 77, 60)', 
-            backgroundColor: 'rgba(10, 77, 60, 0.1)', 
-            tension: 0.4 
-          },
-          { 
-            label: 'Descontos', 
-            data: descontos, 
-            borderColor: 'rgb(239, 68, 68)', 
-            backgroundColor: 'rgba(239, 68, 68, 0.1)', 
-            tension: 0.4 
-          },
-          { 
-            label: 'Líquido', 
-            data: liquidos, 
-            borderColor: 'rgb(232, 185, 49)', 
-            backgroundColor: 'rgba(232, 185, 49, 0.1)', 
-            tension: 0.4 
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: true, position: 'top' },
-          tooltip: { 
-            callbacks: { 
-              label: function(context) { 
-                return context.dataset.label + ': R$ ' + formatMoney(context.parsed.y); 
-              } 
-            } 
-          }
-        },
-        scales: { 
-          y: { 
-            beginAtZero: true, 
-            ticks: { 
-              callback: function(value) { 
-                return 'R$ ' + formatMoney(value); 
-              } 
-            } 
-          } 
-        }
-      }
-    });
-    
-    container.style.display = 'block';
-    container.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  } catch (error) {
-    console.error('Erro:', error);
-    showAlert('❌ Erro ao gerar gráfico.', 'error');
-  }
-}
-
-// ============================================
-// FUNÇÕES DE UPLOAD E DRAG & DROP
-// ============================================
-
-const uploadArea = document.getElementById('uploadArea');
-const fileInput = document.getElementById('arquivo');
-
-['dragenter', 'dragover', 'dragleave', 'drop'].forEach(e => 
-  uploadArea.addEventListener(e, preventDefaults, false)
-);
-
-function preventDefaults(e) { 
-  e.preventDefault(); 
-  e.stopPropagation(); 
-}
-
-['dragenter', 'dragover'].forEach(e => 
-  uploadArea.addEventListener(e, () => uploadArea.classList.add('dragover'))
-);
-
-['dragleave', 'drop'].forEach(e => 
-  uploadArea.addEventListener(e, () => uploadArea.classList.remove('dragover'))
-);
-
-uploadArea.addEventListener('drop', (e) => { 
-  fileInput.files = e.dataTransfer.files; 
-  processar(); 
-});
-
-// ============================================
-// FUNÇÕES DE PROCESSAMENTO
-// ============================================
-
-function switchResultTab(tab) {
-  event.target.parentElement.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  event.target.parentElement.parentElement.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-  event.target.classList.add('active');
-  document.getElementById(`${tab}-result-tab`).classList.add('active');
-}
-
-function updateProgress(percent, text) {
-  const progressContainer = document.getElementById('progressContainer');
-  const progressFill = document.getElementById('progressFill');
-  const progressText = document.getElementById('progressText');
-  
-  progressContainer.classList.add('active');
-  progressFill.style.width = percent + '%';
-  progressText.textContent = text;
-  
-  if (percent >= 100) {
-    setTimeout(() => progressContainer.classList.remove('active'), 1000);
-  }
-}
-
-async function processar() {
-  const file = document.getElementById("arquivo").files[0];
-  let texto = document.getElementById("textoColado").value;
-  const mesAno = document.getElementById("mesAnoReferencia").value;
-  
-  if (!mesAno) { 
-    showAlert('⚠️ Selecione o Mês/Ano!', 'warning'); 
-    document.getElementById('mesAnoReferencia').focus(); 
-    return; 
-  }
-  
-  if (!file && !texto) { 
-    showAlert('Envie um arquivo ou cole o texto.', 'warning'); 
-    return; 
-  }
-  
-  dados.mesAno = mesAno;
-  updateProgress(10, 'Iniciando...');
-  
-  if (file) {
-    if (file.type === "application/pdf") {
-      updateProgress(30, 'Lendo PDF...');
-      const reader = new FileReader();
-      reader.onload = async function () {
-        try {
-          const pdf = await pdfjsLib.getDocument({data: reader.result}).promise;
-          updateProgress(50, 'Extraindo...');
-          let content = "";
-          for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const text = await page.getTextContent();
-            content += text.items.map(t => t.str).join(" ") + "\n";
-          }
-          updateProgress(80, 'Analisando...');
-          extrairDados(content);
-          updateProgress(100, 'Concluído!');
-        } catch (error) {
-          updateProgress(0, '');
-          showAlert('Erro: ' + error.message, 'error');
-        }
-      };
-      reader.readAsArrayBuffer(file);
-    } else {
-      updateProgress(30, 'Processando imagem...');
-      try {
-        const { data } = await Tesseract.recognize(file, 'por', {
-          logger: m => { 
-            if (m.status === 'recognizing text') {
-              updateProgress(30 + (m.progress * 50), 'Reconhecendo...'); 
-            }
-          }
-        });
-        updateProgress(90, 'Finalizando...');
-        extrairDados(data.text);
-        updateProgress(100, 'Concluído!');
-      } catch (error) {
-        updateProgress(0, '');
-        showAlert('Erro: ' + error.message, 'error');
-      }
-    }
-  } else if (texto) {
-    updateProgress(50, 'Processando...');
-    extrairDados(texto);
-    updateProgress(100, 'Concluído!');
-  }
-}
-
-function extrairDados(txt) {
-  let totalBruto = 0, totalDescontos = 0, totalLiquido = 0;
-  
-  const linhasTotais = [
-    /TOTAL\s+DE\s+GANHOS[^0-9]*?(\d{1,3}(?:\.\d{3})*,\d{2})[^0-9]*?TOTAL\s+DE\s+DESCONTOS[^0-9]*?(\d{1,3}(?:\.\d{3})*,\d{2})[^0-9]*?L[IÍ]QUIDO[^0-9]*?(\d{1,3}(?:\.\d{3})*,\d{2})/i,
-    /\*+\s*(\d{1,3}(?:\.\d{3})*,\d{2})\s+\*+\s*(\d{1,3}(?:\.\d{3})*,\d{2})\s+\*+\s*(\d{1,3}(?:\.\d{3})*,\d{2})/i,
-    /TOTAL.*?(\d{1,3}(?:\.\d{3})*,\d{2}).*?(\d{1,3}(?:\.\d{3})*,\d{2}).*?(\d{1,3}(?:\.\d{3})*,\d{2})/i
-  ];
-  
-  for (let regex of linhasTotais) {
-    const match = txt.match(regex);
-    if (match) {
-      totalBruto = parseValorBR(match[1]);
-      totalDescontos = parseValorBR(match[2]);
-      totalLiquido = parseValorBR(match[3]);
-      break;
-    }
-  }
-  
-  if (totalBruto === 0) {
-    extrairItensIndividuais(txt);
-  } else {
-    dados.bruto = totalBruto;
-    dados.totalDescontos = totalDescontos;
-    dados.liquido = totalLiquido;
-    dados.itensExtrados = true;
-    extrairItensIndividuais(txt);
-    analisar();
-    showAlert(`✅ Processado! Bruto R$ ${formatMoney(totalBruto)} | Descontos R$ ${formatMoney(totalDescontos)} | Líquido R$ ${formatMoney(totalLiquido)}`, 'success');
-  }
-}
-
-function parseValorBR(valor) {
-  if (!valor) return 0;
-  return parseFloat(valor.toString().replace(/\./g, '').replace(',', '.')) || 0;
-}
-
-function extrairItensIndividuais(txt) {
-  dados.ganhos = []; 
-  dados.descontos = []; 
-  dados.emprestimos = [];
-  
-  const linhas = txt.split('\n');
-  
-  for (let linha of linhas) {
-    const matchValor = linha.match(/(\d{1,3}(?:\.\d{3})*,\d{2})/g);
-    
-    if (matchValor && matchValor.length > 0) {
-      const valor = parseValorBR(matchValor[matchValor.length - 1]);
-      const descricao = linha.replace(/^\d+\s*/, '').replace(/\d.*$/, '').trim();
-      
-      if (valor > 0 && descricao.length > 3) {
-        const matchParcelas = linha.match(/(\d{3})\|(\d{3})/);
-        const ehEmprestimo = /BANCO|EMP|CART|CONSIG|EMPREST/i.test(linha);
-        const ehDesconto = /IMPOSTO|PREV|INSS|DESCONTO/i.test(linha);
-        
-        if (ehEmprestimo && matchParcelas) {
-          dados.emprestimos.push({ 
-            descricao, 
-            valor, 
-            parcelaAtual: parseInt(matchParcelas[1]), 
-            totalParcelas: parseInt(matchParcelas[2]) 
-          });
-          dados.descontos.push({ descricao, valor });
-        } else if (ehDesconto || ehEmprestimo) {
-          dados.descontos.push({ descricao, valor });
-        } else if (/SOLDO|SALARIO|GRAT|EXTRA|BONUS|ETAPA|VENCIMENTO/i.test(linha)) {
-          dados.ganhos.push({ descricao, valor });
-        }
-      }
-    }
-  }
-}
-
-function analisarManual() {
-  const mesAno = document.getElementById("mesAnoManual").value;
-  const bruto = parseFloat(document.getElementById("totalBrutoManual").value) || 0;
-  const descontos = parseFloat(document.getElementById("totalDescontosManual").value) || 0;
-  const liquido = parseFloat(document.getElementById("totalLiquidoManual").value) || 0;
-  
-  if (!mesAno) { 
-    showAlert('⚠️ Selecione o Mês/Ano!', 'warning'); 
-    document.getElementById('mesAnoManual').focus(); 
-    return; 
-  }
-  
-  if (bruto === 0) { 
-    showAlert('Insira o Total Bruto.', 'warning'); 
-    return; 
-  }
-  
-  const liquidoCalculado = liquido > 0 ? liquido : (bruto - descontos);
-  
-  dados.mesAno = mesAno;
-  dados.bruto = bruto;
-  dados.totalDescontos = descontos;
-  dados.liquido = liquidoCalculado;
-  dados.itensExtrados = false;
-  
-  analisar();
-  showAlert('✅ Análise concluída!', 'success');
-}
-
-function analisar() {
-  const bruto = dados.bruto, descontos = dados.totalDescontos, liquido = dados.liquido;
-  if (bruto === 0) {
-    showAlert('Não foi possível extrair os valores.', 'error');
-    return;
-  }
-  const liquidoCalculado = Math.round((bruto - descontos) * 100) / 100;
-  const diferencaLiquido = Math.abs(liquido - liquidoCalculado);
-  if (diferencaLiquido > 0.10) {
-    showAlert(`⚠️ Líquido informado (R$ ${formatMoney(liquido)}) difere do calculado (R$ ${formatMoney(liquidoCalculado)}).`, 'warning');
-  }
-
-  const percDescontos = bruto > 0 ? Math.round((descontos / bruto * 100) * 100) / 100 : 0;
-  const percLiquido = bruto > 0 ? Math.round((liquido / bruto * 100) * 100) / 100 : 0;
-  dados.percentualDescontos = percDescontos;
-  dados.percentualLiquido = percLiquido;
-
-  // Renderiza toda a interface de resultados
-  document.getElementById('resultsContainer').classList.add('active');
-  renderSummary(bruto, descontos, liquido);
-  renderStats(bruto, descontos, liquido, percDescontos);
-  renderChart(bruto, descontos, liquido);
-  renderDetails();
-  renderComparison(bruto, descontos, liquido, percDescontos);
-  renderSimulation();
-  generateInsights(percDescontos, percLiquido);
-
-  // Salva no histórico e sincroniza
-  salvarNoHistorico();
-  sincronizarComSheets();
-  renderGraficosAdicionais();
-
-  // Scroll suave até os resultados
-  document.getElementById('resultsContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function formatMoney(value) {
-  if (typeof value !== 'number') return '0,00';
-  return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function renderSummary(bruto, descontos, liquido) {
-  const container = document.getElementById('summaryGrid');
-  container.innerHTML = `
-    <div class="summary-item">
-      <div class="summary-item-label">Bruto</div>
-      <div class="summary-item-value">R$ ${formatMoney(bruto)}</div>
-    </div>
-    <div class="summary-item">
-      <div class="summary-item-label">Descontos</div>
-      <div class="summary-item-value" style="color: var(--danger);">R$ ${formatMoney(descontos)}</div>
-    </div>
-    <div class="summary-item">
-      <div class="summary-item-label">Líquido</div>
-      <div class="summary-item-value" style="color: var(--success);">R$ ${formatMoney(liquido)}</div>
-    </div>
-    <div class="summary-item">
-      <div class="summary-item-label">Taxa de Desconto</div>
-      <div class="summary-item-value">${dados.percentualDescontos.toFixed(1)}%</div>
-    </div>
-  `;
-}
-
-function renderStats(bruto, descontos, liquido, percDescontos) {
-  const container = document.getElementById('statsGrid');
-  container.innerHTML = `
-    <div class="stat-card ${percDescontos > 35 ? 'negative' : percDescontos > 25 ? 'warning' : 'positive'}">
-      <div class="stat-label">Taxa de Desconto</div>
-      <div class="stat-value">${percDescontos.toFixed(1)}%</div>
-      <div class="stat-change ${percDescontos > 35 ? 'negative' : percDescontos > 25 ? 'warning' : 'positive'}">
-        ${percDescontos > 35 ? 'Alta – atenção!' : percDescontos > 25 ? 'Moderada' : 'Baixa – ótimo!'}
-      </div>
-    </div>
-    <div class="stat-card info">
-      <div class="stat-label">Líquido/Bruto</div>
-      <div class="stat-value">${dados.percentualLiquido.toFixed(1)}%</div>
-    </div>
-    <div class="stat-card positive">
-      <div class="stat-label">Valor Líquido</div>
-      <div class="stat-value">R$ ${formatMoney(liquido)}</div>
-    </div>
-  `;
-}
-
-function renderChart(bruto, descontos, liquido) {
-  const ctx = document.getElementById('grafico').getContext('2d');
-  if (chartInstance) chartInstance.destroy();
-  chartInstance = new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: ['Bruto', 'Descontos'],
-      datasets: [{
-        data: [liquido, descontos],
-        backgroundColor: ['rgba(232, 185, 49, 0.8)', 'rgba(239, 68, 68, 0.8)'],
-        borderWidth: 0
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'bottom' },
-        tooltip: {
-          callbacks: {
-            label: function(context) {
-              return context.label + ': R$ ' + formatMoney(context.parsed);
-            }
-          }
-        }
-      }
-    }
-  });
-}
-
-function renderDetails() {
-  let html = '<h3 style="margin-bottom: 15px; color: var(--primary);">📋 Detalhamento dos Itens</h3>';
-  
-  // Ganhos
-  if (dados.ganhos && dados.ganhos.length > 0) {
-    html += '<h4 style="margin: 20px 0 10px; color: var(--success);">💰 Ganhos</h4>';
-    html += '<table class="breakdown-table"><thead><tr><th>Descrição</th><th class="amount">Valor</th></tr></thead><tbody>';
-    dados.ganhos.forEach(item => {
-      html += `<tr><td>${item.descricao}</td><td class="amount">R$ ${formatMoney(item.valor)}</td></tr>`;
-    });
-    const totalGanhos = dados.ganhos.reduce((sum, i) => sum + i.valor, 0);
-    html += `<tr style="background: var(--surface-alt); font-weight: 700;"><td>TOTAL</td><td class="amount">R$ ${formatMoney(totalGanhos)}</td></tr>`;
-    html += '</tbody></table>';
-  }
-  
-  // Descontos Obrigatórios
-  if (dados.descontosObrigatorios && dados.descontosObrigatorios.length > 0) {
-    html += '<h4 style="margin: 20px 0 10px; color: var(--danger);">⚖️ Descontos Obrigatórios</h4>';
-    html += '<table class="breakdown-table"><thead><tr><th>Descrição</th><th class="amount">Valor</th></tr></thead><tbody>';
-    dados.descontosObrigatorios.forEach(item => {
-      html += `<tr><td>${item.descricao}</td><td class="amount">R$ ${formatMoney(item.valor)}</td></tr>`;
-    });
-    const totalObrig = dados.descontosObrigatorios.reduce((sum, i) => sum + i.valor, 0);
-    html += `<tr style="background: var(--surface-alt); font-weight: 700;"><td>SUBTOTAL</td><td class="amount">R$ ${formatMoney(totalObrig)}</td></tr>`;
-    html += '</tbody></table>';
-  }
-  
-  // Empréstimos
-  if (dados.emprestimos && dados.emprestimos.length > 0) {
-    html += '<h4 style="margin: 20px 0 10px; color: var(--warning);">🏦 Empréstimos/Consignados</h4>';
-    html += '<table class="breakdown-table"><thead><tr><th>Descrição</th><th class="amount">Valor</th><th style="text-align:center;">Parcela</th></tr></thead><tbody>';
-    dados.emprestimos.forEach(item => {
-      html += `<tr><td>${item.descricao}</td><td class="amount">R$ ${formatMoney(item.valor)}</td><td style="text-align:center;">${item.parcelaAtual}/${item.totalParcelas}</td></tr>`;
-    });
-    const totalEmp = dados.emprestimos.reduce((sum, i) => sum + i.valor, 0);
-    html += `<tr style="background: var(--surface-alt); font-weight: 700;"><td>SUBTOTAL</td><td class="amount" colspan="2">R$ ${formatMoney(totalEmp)}</td></tr>`;
-    html += '</tbody></table>';
-  }
-  
-  // Benefícios
-  if (dados.beneficios && dados.beneficios.length > 0) {
-    html += '<h4 style="margin: 20px 0 10px; color: var(--info);">🏥 Benefícios</h4>';
-    html += '<table class="breakdown-table"><thead><tr><th>Descrição</th><th class="amount">Valor</th></tr></thead><tbody>';
-    dados.beneficios.forEach(item => {
-      html += `<tr><td>${item.descricao}</td><td class="amount">R$ ${formatMoney(item.valor)}</td></tr>`;
-    });
-    const totalBenef = dados.beneficios.reduce((sum, i) => sum + i.valor, 0);
-    html += `<tr style="background: var(--surface-alt); font-weight: 700;"><td>SUBTOTAL</td><td class="amount">R$ ${formatMoney(totalBenef)}</td></tr>`;
-    html += '</tbody></table>';
-  }
-  
-  document.getElementById('detailsContent').innerHTML = html || '<p>Nenhum item detalhado encontrado.</p>';
-}
-
-function renderComparison(bruto, descontos, liquido, percDescontos) {
-  const historico = JSON.parse(localStorage.getItem('historicoContracheques') || '[]');
-  const anteriores = historico.filter(h => h.mesAno !== dados.mesAno);
-  if (anteriores.length === 0) {
-    document.getElementById('comparisonContent').innerHTML = '<p>📊 Nenhum registro anterior para comparação.</p>';
-    return;
-  }
-  const mediaBruto = anteriores.reduce((sum, h) => sum + h.bruto, 0) / anteriores.length;
-  const mediaDescontos = anteriores.reduce((sum, h) => sum + h.descontos, 0) / anteriores.length;
-  const mediaLiquido = anteriores.reduce((sum, h) => sum + h.liquido, 0) / anteriores.length;
-
-  document.getElementById('comparisonContent').innerHTML = `
-    <div class="comparison-grid">
-      <div class="comparison-card">
-        <div class="comparison-label">Bruto Atual vs Média</div>
-        <div class="comparison-value" style="color: ${bruto > mediaBruto ? 'var(--success)' : 'var(--danger)'};">
-          R$ ${formatMoney(bruto)}
-        </div>
-        <div style="font-size: 0.9rem; margin-top: 8px;">Média: R$ ${formatMoney(mediaBruto)}</div>
-      </div>
-      <div class="comparison-card">
-        <div class="comparison-label">Descontos Atual vs Média</div>
-        <div class="comparison-value" style="color: ${descontos > mediaDescontos ? 'var(--danger)' : 'var(--success)'};">
-          R$ ${formatMoney(descontos)}
-        </div>
-        <div style="font-size: 0.9rem; margin-top: 8px;">Média: R$ ${formatMoney(mediaDescontos)}</div>
-      </div>
-      <div class="comparison-card">
-        <div class="comparison-label">Líquido Atual vs Média</div>
-        <div class="comparison-value" style="color: ${liquido > mediaLiquido ? 'var(--success)' : 'var(--danger)'};">
-          R$ ${formatMoney(liquido)}
-        </div>
-        <div style="font-size: 0.9rem; margin-top: 8px;">Média: R$ ${formatMoney(mediaLiquido)}</div>
-      </div>
-    </div>
-  `;
-}
-
-function renderSimulation() {
-  document.getElementById('simulationControls').innerHTML = `
-    <div class="slider-group">
-      <label class="slider-label">
-        Aumento de Bruto (%)
-        <span class="slider-value" id="simBrutoValue">0%</span>
-      </label>
-      <input type="range" min="-10" max="30" step="1" value="0" id="simBrutoSlider" oninput="atualizarSimulacao()">
-    </div>
-    <div class="slider-group">
-      <label class="slider-label">
-        Redução de Descontos (%)
-        <span class="slider-value" id="simDescValue">0%</span>
-      </label>
-      <input type="range" min="0" max="50" step="1" value="0" id="simDescSlider" oninput="atualizarSimulacao()">
-    </div>
-  `;
-  atualizarSimulacao();
-}
-
-function atualizarSimulacao() {
-  const brutoPerc = parseFloat(document.getElementById('simBrutoSlider').value) / 100;
-  const descPerc = parseFloat(document.getElementById('simDescSlider').value) / 100;
-  document.getElementById('simBrutoValue').textContent = `${(brutoPerc * 100).toFixed(0)}%`;
-  document.getElementById('simDescValue').textContent = `${(descPerc * 100).toFixed(0)}%`;
-
-  const novoBruto = dados.bruto * (1 + brutoPerc);
-  const novoDesconto = dados.totalDescontos * (1 - descPerc);
-  const novoLiquido = novoBruto - novoDesconto;
-
-  document.getElementById('simulationResults').innerHTML = `
-    <div class="alert alert-info" style="margin-top: 20px;">
-      <strong>Resultado da Simulação:</strong><br>
-      Novo Bruto: R$ ${formatMoney(novoBruto)}<br>
-      Novos Descontos: R$ ${formatMoney(novoDesconto)}<br>
-      <strong style="font-size: 1.2rem; color: var(--primary);">Novo Líquido: R$ ${formatMoney(novoLiquido)}</strong>
-    </div>
-  `;
-}
-
-function generateInsights(percDescontos, percLiquido) {
-  const insights = [];
-  if (percDescontos > 35) {
-    insights.push('⚠️ Sua taxa de desconto está acima de 35%. Considere renegociar empréstimos ou revisar benefícios.');
-  } else if (percDescontos > 25) {
-    insights.push('💡 Sua taxa de desconto está moderada. Fique atento a novos compromissos financeiros.');
-  } else {
-    insights.push('✅ Excelente! Sua taxa de desconto está baixa. Você tem boa margem para investir ou poupar.');
-  }
-
-  if (dados.emprestimos && dados.emprestimos.length > 0) {
-    const totalEmprestimos = dados.emprestimos.reduce((sum, e) => sum + e.valor, 0);
-    const percEmprestimos = (totalEmprestimos / dados.bruto * 100).toFixed(1);
-    insights.push(`🏦 Empréstimos consignados representam ${percEmprestimos}% do seu bruto. Avalie se vale a pena quitá-los antecipadamente.`);
-  }
-
-  if (percLiquido > 75) {
-    insights.push('📈 Seu líquido representa mais de 75% do bruto – ótimo momento para planejar investimentos!');
-  }
-
-  document.getElementById('insightsContent').innerHTML = insights.map(i => `<div class="insight-item"><div class="insight-text">${i}</div></div>`).join('');
-}
-
 function showAlert(message, type = 'info') {
   const alertDiv = document.createElement('div');
   alertDiv.className = `alert alert-${type}`;
   alertDiv.innerHTML = message;
   document.body.appendChild(alertDiv);
+  
   setTimeout(() => {
-    if (alertDiv.parentNode) alertDiv.parentNode.removeChild(alertDiv);
-  }, 5000);
+    alertDiv.style.transform = 'translateX(400px)';
+    alertDiv.style.opacity = '0';
+    setTimeout(() => {
+      if (alertDiv.parentNode) alertDiv.parentNode.removeChild(alertDiv);
+    }, 300);
+  }, 4000);
 }
 
+// ============================================
+// UTILITY FUNCTIONS
+// ============================================
 function exportarRelatorio() {
-  showAlert('🖨️ Função de exportação em PDF será implementada via backend ou biblioteca como jsPDF.', 'info');
+  showAlert('🖨️ Função de exportação em PDF em desenvolvimento.', 'info');
 }
 
 function resetar() {
@@ -1927,8 +2068,9 @@ function resetar() {
   document.getElementById('totalLiquidoManual').value = '';
   document.getElementById('resultsContainer').classList.remove('active');
   updateSyncStatus('', '⏳ Aguardando dados...');
+  showAlert('🔄 Sistema resetado!', 'info');
 }
-// TEMA CLARO/ESCURO
+
 function toggleTheme() {
   const html = document.documentElement;
   const currentTheme = html.getAttribute('data-theme');
@@ -1940,15 +2082,20 @@ function toggleTheme() {
   localStorage.setItem('theme', newTheme);
 }
 
-// Carregar tema salvo
 function loadTheme() {
   const savedTheme = localStorage.getItem('theme') || 'light';
   document.documentElement.setAttribute('data-theme', savedTheme);
   document.getElementById('themeToggle').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
 }
 
-// Executar ao carregar a página
-document.addEventListener('DOMContentLoaded', loadTheme);
-
+// ============================================
+// INICIALIZAÇÃO
+// ============================================
+document.addEventListener('DOMContentLoaded', function() {
+  loadTheme();
+  carregarHistorico();
+  console.log('✅ Sistema iniciado com sucesso!');
+});
 </script>
+</body>
 </html>
