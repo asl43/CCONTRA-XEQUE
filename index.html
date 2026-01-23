@@ -31,6 +31,48 @@
   --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
+/* Adicionar após as variáveis :root existentes */
+
+[data-theme="dark"] {
+  --primary: #10b981;
+  --primary-light: #34d399;
+  --primary-dark: #059669;
+  --accent: #fbbf24;
+  --accent-hover: #f59e0b;
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface-alt: #334155;
+  --text: #f1f5f9;
+  --text-muted: #94a3b8;
+  --border: #475569;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+}
+
+.theme-toggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.5rem;
+  transition: all 0.3s ease;
+  z-index: 1000;
+  box-shadow: var(--shadow);
+}
+
+.theme-toggle:hover {
+  transform: scale(1.1);
+  box-shadow: var(--shadow-lg);
+}
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -650,59 +692,18 @@ input[type="range"]::-moz-range-thumb {
   .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
   .historico-container { display: none; }
 }
-/* Adicionar após as variáveis :root existentes */
-
-[data-theme="dark"] {
-  --primary: #10b981;
-  --primary-light: #34d399;
-  --primary-dark: #059669;
-  --accent: #fbbf24;
-  --accent-hover: #f59e0b;
-  --bg: #0f172a;
-  --surface: #1e293b;
-  --surface-alt: #334155;
-  --text: #f1f5f9;
-  --text-muted: #94a3b8;
-  --border: #475569;
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
-}
-
-.theme-toggle {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: var(--surface);
-  border: 2px solid var(--border);
-  border-radius: 50%;
-  width: 50px;
-  height: 50px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 1.5rem;
-  transition: all 0.3s ease;
-  z-index: 1000;
-  box-shadow: var(--shadow);
-}
-
-.theme-toggle:hover {
-  transform: scale(1.1);
-  box-shadow: var(--shadow-lg);
-}
 </style>
 </head>
 
 <body>
 <div class="container">
+  <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">🌙</button>
   <div class="header">
     <h1>💰 ContraCheque AI</h1>
     <p class="subtitle">Análise Inteligente com Sincronização Google Sheets</p>
     <div class="status-sync" id="syncStatus">⏳ Aguardando dados...</div>
   </div>
-<button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">🌙</button>
+
   <div class="historico-container" id="historicoContainer">
     <div class="card-header">
       <span class="card-icon">📊</span>
@@ -899,7 +900,6 @@ input[type="range"]::-moz-range-thumb {
     <canvas id="graficoEntradaSaida"></canvas>
   </div>
 </div>
-
 <script>
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby3VFHiTu4oztFIM18Tve-RGFOMDef7bOoddFJRVMTYN8YhElpaZEVJusf-t2_Vba91yg/exec';
 
@@ -1551,7 +1551,7 @@ function extrairDados(txt) {
   }
   
   if (totalBruto === 0) {
-  extrairItensIndividuais(txt);
+    extrairItensIndividuais(txt);
   } else {
     dados.bruto = totalBruto;
     dados.totalDescontos = totalDescontos;
@@ -1572,8 +1572,6 @@ function extrairItensIndividuais(txt) {
   dados.ganhos = []; 
   dados.descontos = []; 
   dados.emprestimos = [];
-  dados.descontosObrigatorios = [];
-  dados.beneficios = [];
   
   const linhas = txt.split('\n');
   
@@ -1586,37 +1584,21 @@ function extrairItensIndividuais(txt) {
       
       if (valor > 0 && descricao.length > 3) {
         const matchParcelas = linha.match(/(\d{3})\|(\d{3})/);
-        const linhaUpper = linha.toUpperCase();
-        
-        // Categorização de Descontos
-        const ehEmprestimo = /BANCO|EMP\s|CART|CONSIG|EMPREST|FINANC/i.test(linha);
-        const ehObrigatorio = /IMPOSTO|PREV|INSS|IRRF|IR\s|FGTS|CONTRIBU|SINDIC/i.test(linha);
-        const ehBeneficio = /SAUDE|PLANO|DENTAL|SEGURO|VIDA|VALE|ASSIST|FARMAC/i.test(linha);
+        const ehEmprestimo = /BANCO|EMP|CART|CONSIG|EMPREST/i.test(linha);
+        const ehDesconto = /IMPOSTO|PREV|INSS|DESCONTO/i.test(linha);
         
         if (ehEmprestimo && matchParcelas) {
-          const item = { 
+          dados.emprestimos.push({ 
             descricao, 
             valor, 
             parcelaAtual: parseInt(matchParcelas[1]), 
-            totalParcelas: parseInt(matchParcelas[2]),
-            categoria: 'emprestimo'
-          };
-          dados.emprestimos.push(item);
-          dados.descontos.push(item);
-        } else if (ehObrigatorio) {
-          const item = { descricao, valor, categoria: 'obrigatorio' };
-          dados.descontosObrigatorios.push(item);
-          dados.descontos.push(item);
-        } else if (ehBeneficio) {
-          const item = { descricao, valor, categoria: 'beneficio' };
-          dados.beneficios.push(item);
-          dados.descontos.push(item);
-        } else if (/SOLDO|SALARIO|GRAT|EXTRA|BONUS|ETAPA|VENCIMENTO|ADICIONAL/i.test(linha)) {
+            totalParcelas: parseInt(matchParcelas[2]) 
+          });
+          dados.descontos.push({ descricao, valor });
+        } else if (ehDesconto || ehEmprestimo) {
+          dados.descontos.push({ descricao, valor });
+        } else if (/SOLDO|SALARIO|GRAT|EXTRA|BONUS|ETAPA|VENCIMENTO/i.test(linha)) {
           dados.ganhos.push({ descricao, valor });
-        } else if (/DESC|DED/i.test(linha)) {
-          // Descontos genéricos
-          const item = { descricao, valor, categoria: 'outro' };
-          dados.descontos.push(item);
         }
       }
     }
@@ -1681,8 +1663,8 @@ function analisar() {
 
   // Salva no histórico e sincroniza
   salvarNoHistorico();
-  renderGraficosAdicionais();
   sincronizarComSheets();
+  renderGraficosAdicionais();
 
   // Scroll suave até os resultados
   document.getElementById('resultsContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1819,6 +1801,7 @@ function renderDetails() {
   
   document.getElementById('detailsContent').innerHTML = html || '<p>Nenhum item detalhado encontrado.</p>';
 }
+
 function renderComparison(bruto, descontos, liquido, percDescontos) {
   const historico = JSON.parse(localStorage.getItem('historicoContracheques') || '[]');
   const anteriores = historico.filter(h => h.mesAno !== dados.mesAno);
@@ -1966,5 +1949,6 @@ function loadTheme() {
 
 // Executar ao carregar a página
 document.addEventListener('DOMContentLoaded', loadTheme);
+
 </script>
 </html>
